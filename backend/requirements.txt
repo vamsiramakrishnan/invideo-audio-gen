@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pydantic
+google-cloud-aiplatform
+pydub
+numpy
+python-dotenv
+google-genai

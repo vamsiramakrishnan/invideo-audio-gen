@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Improved focus styles */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-base-100;
+  }
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-base-200 rounded;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/50 rounded hover:bg-primary/70 transition-colors;
+}
+
+/* Custom styles for form elements */
+.input, .select, .textarea {
+  @apply transition-all duration-200;
+}
+
+.input:hover, .select:hover, .textarea:hover {
+  @apply border-primary/30;
+}
+
+/* Custom styles for audio player */
+audio {
+  @apply h-12;
+}
+
+audio::-webkit-media-controls-panel {
+  @apply bg-base-200;
+}
+
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-mute-button {
+  @apply bg-primary rounded-full hover:bg-primary-focus transition-colors;
+}
+
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display {
+  @apply text-base-content/80;
+}
+
+/* Card hover effects */
+.card {
+  @apply transition-all duration-300 hover:shadow-2xl hover:-translate-y-1;
+}
+
+/* Button hover animations */
+.btn {
+  @apply transition-all duration-300;
+}
+
+.btn:active {
+  @apply transform scale-95;
+}
+
+/* Progress steps animation */
+.step {
+  @apply transition-all duration-300;
+}
+
+.step-primary + .step-primary::before {
+  @apply transition-all duration-500;
+}
+
+/* Loading state pulse animation */
+.loading-pulse {
+  @apply animate-pulse;
+}
