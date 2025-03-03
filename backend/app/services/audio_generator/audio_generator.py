@@ -248,6 +248,91 @@ class AudioGenerator:
                 dialogue.append((speaker.strip(), text.strip()))
         return dialogue
 
+    async def generate_single_segment(self, request: Dict[str, Any]):
+        """Generate audio for a single segment with voice configuration."""
+        speaker = request["speaker"]
+        text = request["text"]
+        voice_config = request["voiceConfig"]
+        
+        voice = voice_config["voice"]
+        speaker_config = voice_config["config"]
+        
+        # Yield initial progress update
+        yield {
+            "type": "progress",
+            "stage": "generating",
+            "message": f"Generating audio for {speaker}",
+            "speaker": speaker,
+            "progress": {
+                "current": 0,
+                "total": 1,
+                "percentage": 0
+            }
+        }
+        
+        # Generate segment
+        try:
+            # Update progress
+            yield {
+                "type": "progress",
+                "stage": "processing",
+                "message": f"Processing audio for {speaker}",
+                "speaker": speaker,
+                "progress": {
+                    "current": 0,
+                    "total": 1,
+                    "percentage": 50
+                }
+            }
+            
+            # Generate the audio segment
+            segment_audio, segment_path = await self._generate_segment(text, voice, speaker_config)
+            
+            # Yield segment completion
+            yield {
+                "type": "segment_complete",
+                "stage": "segment_generated",
+                "speaker": speaker,
+                "segment_path": segment_path,
+                "duration": segment_audio.duration if hasattr(segment_audio, 'duration') else None,
+                "progress": {
+                    "current": 1,
+                    "total": 1,
+                    "percentage": 100
+                }
+            }
+            
+            # Final completion message
+            yield {
+                "type": "complete",
+                "stage": "generation_complete",
+                "message": "Audio generation complete",
+                "segments": [{
+                    "speaker": speaker,
+                    "path": segment_path,
+                    "duration": segment_audio.duration if hasattr(segment_audio, 'duration') else None
+                }],
+                "progress": {
+                    "current": 1,
+                    "total": 1,
+                    "percentage": 100
+                }
+            }
+            
+        except Exception as e:
+            yield {
+                "type": "error",
+                "stage": "segment_failed",
+                "speaker": speaker,
+                "error": str(e),
+                "progress": {
+                    "current": 0,
+                    "total": 1,
+                    "percentage": 0
+                }
+            }
+            raise
+
     def get_available_voices(self) -> Dict[str, Dict[str, str]]:
         """Get available voice options with metadata."""
         return VOICE_CONFIGS

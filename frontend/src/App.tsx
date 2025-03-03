@@ -1,27 +1,47 @@
 import React, { useState, useEffect } from 'react';
+import wsService from './services/websocket';
 import ConceptForm from './components/ConceptForm';
-import TranscriptEditor from './components/TranscriptEditor';
 import SpeakerConfigForm from './components/SpeakerConfigForm';
+import TranscriptEditor from './components/TranscriptEditor';
 import ProgressSteps from './components/ProgressSteps';
 import { SpeakerVoiceMapping } from './types/speaker';
-import wsService from './services/websocket';
-import { VOICE_CONFIGS, VOICE_OPTIONS } from './config/voices';
+import { usePodcast } from './contexts/PodcastContext';
+import { useAudio } from './contexts/AudioContext';
+import { AudioProvider } from './contexts/AudioContext';
 
+// Define API_BASE_URL since it's not found in a config file
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-const App: React.FC = () => {
-  const [step, setStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [characters, setCharacters] = useState<string[]>([]);
-  const [voiceMappings, setVoiceMappings] = useState<Record<string, SpeakerVoiceMapping>>({});
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+const AppContent = () => {
+  // Use the PodcastContext for global state
+  const { 
+    step, 
+    setStep,
+    transcript, 
+    setTranscript,
+    characters, 
+    setCharacters,
+    voiceMappings, 
+    setVoiceMappings,
+    error, 
+    setError,
+    isLoading, 
+    setIsLoading
+  } = usePodcast();
+  
+  // Use the AudioContext for audio generation
+  const {
+    generateAudio,
+    isGenerating,
+    isGeneratingSegment,
+    segmentError,
+    audioUrl
+  } = useAudio();
 
   const STEPS = [
     { label: 'Concept', desc: 'Define your podcast' },
-    { label: 'Transcript', desc: 'Edit content' },
     { label: 'Voices', desc: 'Configure voices' },
+    { label: 'Transcript', desc: 'Edit content' },
     { label: 'Audio', desc: 'Listen & export' }
   ];
 
@@ -36,7 +56,7 @@ const App: React.FC = () => {
     // Set up WebSocket listeners
     const handleTranscriptGenerated = (transcriptData: string) => {
       setTranscript(transcriptData);
-      setStep(2); // Now moves to Transcript step instead of Voices
+      setStep(2); // Move to Voices step
       setIsLoading(false);
     };
 
@@ -53,7 +73,14 @@ const App: React.FC = () => {
       wsService.off('transcript_generated', handleTranscriptGenerated);
       wsService.off('error', handleError);
     };
-  }, []);
+  }, [setTranscript, setStep, setIsLoading, setError]);
+
+  // If there's a segment audio error, update the global error state
+  useEffect(() => {
+    if (segmentError) {
+      setError(segmentError);
+    }
+  }, [segmentError, setError]);
 
   const handleConceptSubmit = async (concept: {
     topic: string;
@@ -79,7 +106,7 @@ const App: React.FC = () => {
     try {
       setIsLoading(true);
       setVoiceMappings(mappings);
-      setStep(4); // Changed from 3 to 4 since we moved steps
+      setStep(3); // Move to Transcript step after voice configuration
     } catch (error) {
       console.error('Error configuring voices:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');
@@ -111,7 +138,7 @@ const App: React.FC = () => {
       }
       
       setTranscript(editedTranscript);
-      setStep(3); // Changed from 4 to 3 since we moved steps
+      setStep(4); // Move to Audio step after transcript editing
     } catch (error) {
       console.error('Error saving transcript:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');
@@ -125,29 +152,12 @@ const App: React.FC = () => {
       setIsLoading(true);
       setError(null);
       
-      // Format the request data
-      const requestData = {
-        transcript: transcript,
-        voiceMappings: voiceMappings
-      };
-
-      console.log('Sending request:', requestData);  // Add this log
-
-      const response = await fetch(`${API_BASE_URL}/api/generate-audio`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
+      await generateAudio({
+        transcript,
+        voiceMappings
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to generate audio');
-      }
-      
-      const data = await response.json();
-      setAudioUrl(`${API_BASE_URL}${data.audioUrl}`);
+      setStep(5); // Move to final step with audio player
     } catch (error) {
       console.error('Error generating audio:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');
@@ -157,27 +167,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-300 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
-        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-conic from-primary via-secondary to-accent blur-3xl transform rotate-45"></div>
-        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-conic from-accent via-primary to-secondary blur-3xl transform -rotate-45"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-base-100 to-base-300">
+      <div className="container mx-auto py-12 px-4">
+        <h1 className="text-4xl font-bold text-center mb-12 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          AI Podcast Generator
+        </h1>
 
-      <div className="max-w-5xl mx-auto relative">
-        <div className="text-center mb-16">
-          <div className="inline-block">
-            <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-accent animate-gradient-x mb-6 tracking-tight">
-              Podcast Generator
-            </h1>
-            <div className="h-1 w-32 mx-auto bg-gradient-to-r from-primary to-secondary rounded-full"></div>
-          </div>
-          <p className="text-xl text-base-content/70 mt-6 font-light">
-            Create professional podcasts with AI-powered voices
-          </p>
-        </div>
-        
-        {/* Progress Steps */}
         <ProgressSteps
           currentStep={step}
           onStepClick={handleStepChange}
@@ -195,7 +190,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <div className={`transition-all duration-500 ${isLoading ? 'opacity-50 scale-98' : 'scale-100'}`}>
+          <div className={`transition-all duration-500 ${isLoading || isGenerating || isGeneratingSegment ? 'opacity-50 scale-98' : 'scale-100'}`}>
             {step === 1 && (
               <div className="animate-fadeIn">
                 <ConceptForm
@@ -207,21 +202,22 @@ const App: React.FC = () => {
 
             {step === 2 && (
               <div className="animate-fadeIn">
-                <TranscriptEditor
-                  initialContent={transcript}
-                  onSave={handleTranscriptSave}
-                  isLoading={isLoading}
+                <SpeakerConfigForm
                   characters={characters}
+                  onSubmit={handleVoiceConfigSubmit}
+                  isLoading={isLoading}
                 />
               </div>
             )}
 
             {step === 3 && (
               <div className="animate-fadeIn">
-                <SpeakerConfigForm
-                  characters={characters}
-                  onSubmit={handleVoiceConfigSubmit}
+                <TranscriptEditor
+                  initialContent={transcript}
+                  onSave={handleTranscriptSave}
                   isLoading={isLoading}
+                  characters={characters}
+                  voiceMappings={voiceMappings}
                 />
               </div>
             )}
@@ -270,6 +266,14 @@ const App: React.FC = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const App = () => {
+  return (
+    <AudioProvider apiBaseUrl={API_BASE_URL}>
+      <AppContent />
+    </AudioProvider>
   );
 };
 

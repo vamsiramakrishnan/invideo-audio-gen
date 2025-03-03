@@ -40,13 +40,13 @@ export const VOICE_STYLE_PRESETS: Record<VoiceStyle, Partial<SpeakerConfig>> = {
     speaking_rate: { normal: 150, excited: 160, analytical: 140 },
     voice_characteristics: {
       pitch_range: 'medium',
-      resonance: 'balanced',
+      resonance: 'mixed',
       breathiness: 'low',
-      vocal_energy: 'medium',
+      vocal_energy: 'moderate',
       pause_pattern: 'natural',
-      emphasis_pattern: 'standard',
-      emotional_range: 'balanced',
-      breathing_pattern: 'subtle'
+      emphasis_pattern: 'balanced',
+      emotional_range: 'neutral',
+      breathing_pattern: 'relaxed'
     }
   },
   warm_casual: {
@@ -54,13 +54,13 @@ export const VOICE_STYLE_PRESETS: Record<VoiceStyle, Partial<SpeakerConfig>> = {
     speaking_rate: { normal: 160, excited: 175, analytical: 145 },
     voice_characteristics: {
       pitch_range: 'wide',
-      resonance: 'warm',
+      resonance: 'chest',
       breathiness: 'medium',
       vocal_energy: 'high',
       pause_pattern: 'natural',
-      emphasis_pattern: 'dynamic',
-      emotional_range: 'dynamic',
-      breathing_pattern: 'natural'
+      emphasis_pattern: 'strong',
+      emotional_range: 'expressive',
+      breathing_pattern: 'dynamic'
     }
   },
   authoritative_formal: {
@@ -68,13 +68,13 @@ export const VOICE_STYLE_PRESETS: Record<VoiceStyle, Partial<SpeakerConfig>> = {
     speaking_rate: { normal: 140, excited: 155, analytical: 135 },
     voice_characteristics: {
       pitch_range: 'narrow',
-      resonance: 'strong',
+      resonance: 'chest',
       breathiness: 'low',
       vocal_energy: 'high',
-      pause_pattern: 'extended',
+      pause_pattern: 'dramatic',
       emphasis_pattern: 'strong',
-      emotional_range: 'limited',
-      breathing_pattern: 'subtle'
+      emotional_range: 'neutral',
+      breathing_pattern: 'controlled'
     }
   },
   friendly_conversational: {
@@ -82,13 +82,13 @@ export const VOICE_STYLE_PRESETS: Record<VoiceStyle, Partial<SpeakerConfig>> = {
     speaking_rate: { normal: 155, excited: 170, analytical: 145 },
     voice_characteristics: {
       pitch_range: 'wide',
-      resonance: 'balanced',
+      resonance: 'mixed',
       breathiness: 'medium',
-      vocal_energy: 'medium',
+      vocal_energy: 'moderate',
       pause_pattern: 'natural',
-      emphasis_pattern: 'dynamic',
-      emotional_range: 'dynamic',
-      breathing_pattern: 'natural'
+      emphasis_pattern: 'balanced',
+      emotional_range: 'expressive',
+      breathing_pattern: 'relaxed'
     }
   },
   energetic_dynamic: {
@@ -96,13 +96,13 @@ export const VOICE_STYLE_PRESETS: Record<VoiceStyle, Partial<SpeakerConfig>> = {
     speaking_rate: { normal: 165, excited: 180, analytical: 150 },
     voice_characteristics: {
       pitch_range: 'wide',
-      resonance: 'strong',
+      resonance: 'chest',
       breathiness: 'low',
       vocal_energy: 'high',
       pause_pattern: 'minimal',
       emphasis_pattern: 'strong',
-      emotional_range: 'dynamic',
-      breathing_pattern: 'pronounced'
+      emotional_range: 'highly-expressive',
+      breathing_pattern: 'dynamic'
     }
   },
   calm_soothing: {
@@ -110,13 +110,13 @@ export const VOICE_STYLE_PRESETS: Record<VoiceStyle, Partial<SpeakerConfig>> = {
     speaking_rate: { normal: 135, excited: 145, analytical: 130 },
     voice_characteristics: {
       pitch_range: 'narrow',
-      resonance: 'soft',
+      resonance: 'head',
       breathiness: 'high',
       vocal_energy: 'low',
-      pause_pattern: 'extended',
-      emphasis_pattern: 'light',
-      emotional_range: 'limited',
-      breathing_pattern: 'subtle'
+      pause_pattern: 'dramatic',
+      emphasis_pattern: 'subtle',
+      emotional_range: 'neutral',
+      breathing_pattern: 'relaxed'
     }
   },
   analytical_precise: {
@@ -124,13 +124,13 @@ export const VOICE_STYLE_PRESETS: Record<VoiceStyle, Partial<SpeakerConfig>> = {
     speaking_rate: { normal: 145, excited: 155, analytical: 140 },
     voice_characteristics: {
       pitch_range: 'narrow',
-      resonance: 'balanced',
+      resonance: 'mixed',
       breathiness: 'low',
-      vocal_energy: 'medium',
-      pause_pattern: 'extended',
+      vocal_energy: 'moderate',
+      pause_pattern: 'dramatic',
       emphasis_pattern: 'strong',
-      emotional_range: 'limited',
-      breathing_pattern: 'subtle'
+      emotional_range: 'neutral',
+      breathing_pattern: 'controlled'
     }
   },
   storytelling_engaging: {
@@ -138,13 +138,13 @@ export const VOICE_STYLE_PRESETS: Record<VoiceStyle, Partial<SpeakerConfig>> = {
     speaking_rate: { normal: 150, excited: 170, analytical: 140 },
     voice_characteristics: {
       pitch_range: 'wide',
-      resonance: 'warm',
+      resonance: 'chest',
       breathiness: 'medium',
       vocal_energy: 'high',
       pause_pattern: 'natural',
-      emphasis_pattern: 'dynamic',
-      emotional_range: 'dynamic',
-      breathing_pattern: 'natural'
+      emphasis_pattern: 'strong',
+      emotional_range: 'highly-expressive',
+      breathing_pattern: 'dynamic'
     }
   }
 };

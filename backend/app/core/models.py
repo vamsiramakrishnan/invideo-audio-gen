@@ -143,6 +143,11 @@ class PodcastRequest(BaseModel):
     transcript: str = Field(..., min_length=1)
     voiceMappings: Dict[str, VoiceConfig]
 
+class SingleSegmentRequest(BaseModel):
+    speaker: str = Field(..., min_length=1)
+    text: str = Field(..., min_length=1)
+    voiceConfig: VoiceConfig
+
 class PodcastConfig(BaseModel):
     duration_options: List[int] = Field(
         default=[5, 10, 15, 20, 30],

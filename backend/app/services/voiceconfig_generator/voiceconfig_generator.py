@@ -1,13 +1,17 @@
 from typing import List, Dict
-import google.generativeai as genai
+from google import genai
 from pydantic import TypeAdapter
 from app.core.models import SpeakerConfig, VoiceCharacteristics, SpeakingRate, SpeechPatterns
+from app.core.config import settings
 
 class VoiceConfigGenerator:
-    def __init__(self, api_key: str):
-        """Initialize the voice config generator with Gemini API key."""
-        genai.configure(api_key=api_key)
-        self.client = genai.GenerativeModel('gemini-pro')
+    def __init__(self):
+        """Initialize the VoiceConfigGenerator with Gemini client."""
+        self.client = genai.Client(
+            project=settings.PROJECT_ID,
+            location="us-central1", 
+            vertexai=True
+        )
 
     def _create_prompt(self, transcript: str, speakers: List[str]) -> str:
         """Create a prompt for Gemini to generate voice configurations."""
@@ -39,22 +43,20 @@ class VoiceConfigGenerator:
         try:
             prompt = self._create_prompt(transcript, speakers)
             
-            response = self.client.generate_content(
-                contents=prompt,
-                generation_config={
-                    'temperature': 0.7,
-                    'top_p': 0.8,
-                    'top_k': 40,
-                },
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash-001",
+                contents=[{"text": prompt}],
                 config={
-                    'response_mime_type': 'application/json',
-                    'response_schema': Dict[str, SpeakerConfig],
+                    "max_output_tokens": 8192,
                 }
             )
 
+            if not response.candidates:
+                raise ValueError("No configurations generated")
+
             # Parse the response using Pydantic's TypeAdapter
             adapter = TypeAdapter(Dict[str, SpeakerConfig])
-            configs = adapter.validate_json(response.text)
+            configs = adapter.validate_json(response.candidates[0].content.parts[0].text)
             
             return configs
 
@@ -83,4 +85,4 @@ class VoiceConfigGenerator:
                 
             return True
         except Exception:
-            return False 
+            return False
