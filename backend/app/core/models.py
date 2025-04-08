@@ -129,15 +129,21 @@ class FormatStyle(str, Enum):
     storytelling = "storytelling"
 
 class ConceptRequest(BaseModel):
-    topic: str = Field(..., min_length=1, max_length=500, description="The main topic of the podcast")
-    num_speakers: int = Field(..., ge=2, le=4, description="Number of speakers in the podcast")
-    character_names: List[str] = Field(..., min_items=2, max_items=4, description="List of speaker names")
-    expertise_level: ExpertiseLevel = Field(..., description="Target audience expertise level")
-    duration_minutes: int = Field(..., ge=5, le=30, description="Duration of the podcast in minutes")
-    format_style: FormatStyle = Field(..., description="Style of the podcast format")
+    topic: str
+    num_speakers: int = Field(gt=0) # Number of speakers must be positive
+    character_names: List[str]
+    expertise_level: str # Assuming values like 'beginner', 'intermediate', 'expert'
+    duration_minutes: int = Field(gt=0) # Duration must be positive
+    format_style: str # Assuming values like 'casual', 'interview', etc.
 
 class TranscriptEditRequest(BaseModel):
     transcript: str
+
+# New model for transcript extension request
+class TranscriptExtendRequest(BaseModel):
+    transcript: str
+    target_duration_minutes: int = Field(gt=0)
+    characters: List[str]
 
 class PodcastRequest(BaseModel):
     transcript: str = Field(..., min_length=1)

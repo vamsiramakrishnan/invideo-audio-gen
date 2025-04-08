@@ -78,6 +78,11 @@ interface TranscriptEditorProps {
   characters: string[];
   voiceMappings?: Record<string, SpeakerVoiceMapping>;
   onGenerateSegmentAudio?: (speaker: string, text: string) => Promise<string>;
+  wordCount: number | null;
+  estimatedDurationMinutes: number | null;
+  targetDurationMinutes: number | null;
+  onExtendTranscript?: (currentTranscript: string) => Promise<string>;
+  isExtending?: boolean;
 }
 
 const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
@@ -86,7 +91,12 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
   isLoading,
   characters,
   voiceMappings = {},
-  onGenerateSegmentAudio
+  onGenerateSegmentAudio,
+  wordCount,
+  estimatedDurationMinutes,
+  targetDurationMinutes,
+  onExtendTranscript,
+  isExtending = false,
 }) => {
   const [turns, setTurns] = useState<DialogTurn[]>([]);
   const [isDirty, setIsDirty] = useState(false);
@@ -384,6 +394,29 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
     }
   };
 
+  // Handle transcript extension
+  const handleExtendTranscript = async () => {
+    if (!onExtendTranscript || isExtending) return;
+
+    setError(null); // Clear previous errors
+
+    try {
+      const currentTranscript = turnsToText(turns);
+      const extendedTranscript = await onExtendTranscript(currentTranscript);
+      
+      // Reparse the extended transcript
+      const newTurns = parseTranscript(extendedTranscript);
+      setTurns(newTurns);
+      setIsDirty(true); // Mark as dirty since content changed
+      setSelectedTurnIndex(null); // Deselect any selected turn
+
+    } catch (err) {
+      console.error('Error extending transcript:', err);
+      setError(err instanceof Error ? err.message : 'Failed to extend transcript');
+    } 
+    // Loading state (isExtending) is managed by the parent component via props
+  };
+
   // Clean up audio elements on unmount
   useEffect(() => {
     return () => {
@@ -396,6 +429,16 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
       audioRefs.current = {};
     };
   }, []);
+
+  // Determine if the extend button should be shown and enabled
+  const canExtend = useMemo(() => {
+    return (
+      onExtendTranscript &&
+      targetDurationMinutes !== null &&
+      estimatedDurationMinutes !== null &&
+      estimatedDurationMinutes < targetDurationMinutes
+    );
+  }, [onExtendTranscript, targetDurationMinutes, estimatedDurationMinutes]);
 
   return (
     <div className="card glass shadow-xl border border-base-content/10">
@@ -434,6 +477,20 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                 )}
               </button>
             )}
+            {canExtend && (
+              <button
+                className={`btn btn-sm btn-secondary gap-1 ${isExtending ? 'loading' : ''}`}
+                onClick={handleExtendTranscript}
+                disabled={isExtending || isLoading}
+              >
+                {!isExtending && (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                )}
+                {isExtending ? 'Extending...' : 'Extend Transcript'}
+              </button>
+            )}
             <button 
               className="btn btn-sm btn-outline btn-primary"
               onClick={handleReset}
@@ -463,6 +520,22 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
             <button className="btn btn-sm btn-ghost" onClick={() => setError(null)}>Dismiss</button>
           </div>
         )}
+
+        <div className="flex justify-between items-center bg-base-200/50 backdrop-blur-sm rounded-lg p-4 border border-base-content/10 mb-4 shadow-inner">
+          <div className="stat">
+            <div className="stat-title text-base-content/70">Word Count</div>
+            <div className="stat-value text-lg font-semibold">{wordCount ?? '-'}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-title text-base-content/70">Est. Duration</div>
+            <div className="stat-value text-lg font-semibold">
+              {estimatedDurationMinutes !== null ? `${estimatedDurationMinutes} min` : '-'}
+              {targetDurationMinutes !== null && (
+                 <span className="text-sm font-normal text-base-content/50"> / {targetDurationMinutes} min target</span>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-4 mb-6">
           {turns.map((turn, index) => {

@@ -24,6 +24,10 @@ interface PodcastContextType {
   handleConceptSubmit: (concept: PodcastConcept) => Promise<void>;
   handleTranscriptSave: (transcript: string) => Promise<void>;
   clearPodcastState: () => void;
+  wordCount: number | null;
+  setWordCount: (wordCount: number | null) => void;
+  estimatedDurationMinutes: number | null;
+  setEstimatedDurationMinutes: (estimatedDurationMinutes: number | null) => void;
 }
 
 const PodcastContext = createContext<PodcastContextType | undefined>(undefined);
@@ -35,6 +39,8 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [voiceMappings, setVoiceMappings] = useState<Record<string, SpeakerVoiceMapping>>({});
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [wordCount, setWordCount] = useState<number | null>(null);
+  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState<number | null>(null);
 
   const steps = [
     { label: 'Concept', desc: 'Define your podcast' },
@@ -78,29 +84,35 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setVoiceMappings({});
     setError(null);
     setIsLoading(false);
+    setWordCount(null);
+    setEstimatedDurationMinutes(null);
+  };
+
+  const contextValue: PodcastContextType = {
+    step,
+    steps,
+    transcript,
+    characters,
+    voiceMappings,
+    error,
+    isLoading,
+    setStep,
+    setTranscript,
+    setCharacters,
+    setVoiceMappings,
+    setError,
+    setIsLoading,
+    handleConceptSubmit,
+    handleTranscriptSave,
+    clearPodcastState,
+    wordCount,
+    setWordCount,
+    estimatedDurationMinutes,
+    setEstimatedDurationMinutes
   };
 
   return (
-    <PodcastContext.Provider
-      value={{
-        step,
-        steps,
-        transcript,
-        characters,
-        voiceMappings,
-        error,
-        isLoading,
-        setStep,
-        setTranscript,
-        setCharacters,
-        setVoiceMappings,
-        setError,
-        setIsLoading,
-        handleConceptSubmit,
-        handleTranscriptSave,
-        clearPodcastState
-      }}
-    >
+    <PodcastContext.Provider value={contextValue}>
       {children}
     </PodcastContext.Provider>
   );

@@ -168,6 +168,9 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
             characters={[speaker]}
             voiceMappings={voiceMappings}
             onGenerateSegmentAudio={handleGenerateSegmentAudio}
+            wordCount={null}
+            estimatedDurationMinutes={null}
+            targetDurationMinutes={null}
           />
           
           <div className="mt-6 flex justify-end">
