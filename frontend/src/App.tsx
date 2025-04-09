@@ -84,9 +84,13 @@ const AppContent = () => {
   // Effect to initialize/update local turns state when context transcript changes
   useEffect(() => {
     const parsedTurns = parseTranscript(transcriptStringFromContext);
-    setTurns(parsedTurns);
-    setIsTranscriptDirty(false); // Reset dirty state when context changes
-  }, [transcriptStringFromContext]);
+    // Only update if the parsed turns are different from the current state
+    // This prevents unnecessary resets when context updates but content is the same
+    if (turnsToText(parsedTurns) !== turnsToText(turns)) {
+      setTurns(parsedTurns);
+      setIsTranscriptDirty(false); // Reset dirty state only when context causes a real change
+    }
+  }, [transcriptStringFromContext, turns]); // Add turns as dependency
 
   useEffect(() => {
     // Set up WebSocket listeners
@@ -94,8 +98,6 @@ const AppContent = () => {
       // Update context string first
       setTranscriptStringInContext(data.transcript);
       // Context update will trigger the above useEffect to parse into local `turns` state
-      setCharacters(data.characters || []); // Ensure characters is an array
-      // Word count/duration will be calculated from local state via useMemo below
       setStep(2); // Move to Voices step
       setIsLoading(false);
     };
@@ -114,7 +116,7 @@ const AppContent = () => {
       wsService.off('error', handleError);
     };
     // Removed setWordCount, setEstimatedDurationMinutes from dependencies
-  }, [setTranscriptStringInContext, setCharacters, setStep, setIsLoading, setError]);
+  }, [setTranscriptStringInContext, setStep, setIsLoading, setError]);
 
   // If there's a segment audio error, update the global error state
   useEffect(() => {
@@ -122,6 +124,20 @@ const AppContent = () => {
       setError(segmentError);
     }
   }, [segmentError, setError]);
+
+  // Derive unique characters from the transcript string in the context
+  const uniqueCharacters = useMemo(() => {
+    if (!transcriptStringFromContext) {
+      console.log("Memo: No transcript string, returning empty characters");
+      return [];
+    }
+    console.log("Memo: Parsing transcript string for characters:", transcriptStringFromContext.substring(0, 50) + "..."); // Log first part
+    const parsedTurns = parseTranscript(transcriptStringFromContext); // Use the utility function
+    const speakers = new Set(parsedTurns.map(turn => turn.speaker));
+    const characterArray = Array.from(speakers);
+    console.log("Memo: Derived characters:", characterArray);
+    return characterArray;
+  }, [transcriptStringFromContext]); // Re-run only when the context string changes
 
   // --- Add Transcript Editor Handlers ---
   const handleTurnUpdate = (index: number, updatedTurnData: Partial<DialogTurn>) => {
@@ -383,7 +399,7 @@ const AppContent = () => {
             {step === 2 && (
               <div className="animate-fadeIn">
                 <SpeakerConfigForm
-                  characters={characters}
+                  characters={uniqueCharacters}
                   onSubmit={handleVoiceConfigSubmit}
                   isLoading={isLoading}
                 />
@@ -396,7 +412,7 @@ const AppContent = () => {
                   turns={turns}
                   onSave={handleTranscriptSave}
                   isLoading={isLoading || isGeneratingSegment}
-                  characters={characters}
+                  characters={uniqueCharacters}
                   voiceMappings={voiceMappings}
                   onGenerateSegmentAudio={handleGenerateSegmentAudio}
                   wordCount={wordCount}

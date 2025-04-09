@@ -27,6 +27,8 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
   targetDurationMinutes = null,
   onFinalizeTurns
 }) => {
+  console.log('VoiceConfigurationManager received initialTranscript:', initialTranscript);
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [updates, setUpdates] = useState<ProgressUpdate[]>([]);
   const [voiceMappings, setVoiceMappings] = useState<Record<string, SpeakerVoiceMapping>>({});
@@ -184,6 +186,17 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
     onComplete('https://example.com/final-audio.mp3');
   };
 
+  // Derive unique characters from the parsed turns
+  const characters = useMemo(() => {
+    if (!turns || turns.length === 0) {
+      // Fallback if turns are empty - maybe use the initial speaker prop?
+      // Or return empty array if transcript is the sole source of truth.
+      return speaker ? [speaker] : []; 
+    }
+    const uniqueSpeakers = new Set(turns.map(turn => turn.speaker));
+    return Array.from(uniqueSpeakers);
+  }, [turns, speaker]); // Include speaker as dependency for the fallback
+
   return (
     <div className="space-y-6">
       {error && (
@@ -214,7 +227,7 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
             </h2>
             
             <SpeakerConfigForm
-              characters={[speaker]}
+              characters={characters}
               onSubmit={handleVoiceConfigSubmit}
               isLoading={isGenerating}
             />
@@ -228,7 +241,7 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
             turns={turns}
             onSave={handleSaveFromEditor}
             isLoading={isGenerating || isGeneratingSegment}
-            characters={[speaker]}
+            characters={characters}
             voiceMappings={voiceMappings}
             onGenerateSegmentAudio={handleGenerateSegmentAudio}
             wordCount={wordCount}
