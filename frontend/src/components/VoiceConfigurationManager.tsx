@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { VoiceConfig } from '../types/voice';
 import { ProgressUpdate } from '../types/audio';
 import SpeakerConfigForm from './SpeakerConfigForm';
@@ -6,6 +6,7 @@ import AudioGenerationProgress from './AudioGenerationProgress';
 import TranscriptEditor from './TranscriptEditor';
 import { SpeakerVoiceMapping } from '../types/speaker';
 import { useAudio } from '../contexts/AudioContext';
+import { DialogTurn, parseTranscript, turnsToText } from '../utils/transcriptUtils';
 
 interface VoiceConfigurationManagerProps {
   speaker: string;
@@ -13,6 +14,8 @@ interface VoiceConfigurationManagerProps {
   onComplete: (audioUrl: string) => void;
   onTranscriptChange?: (transcript: string) => void;
   apiBaseUrl?: string;
+  targetDurationMinutes?: number | null;
+  onFinalizeTurns?: (turns: DialogTurn[]) => void;
 }
 
 const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
@@ -20,28 +23,85 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
   initialTranscript = '',
   onComplete,
   onTranscriptChange,
-  apiBaseUrl = ''
+  apiBaseUrl = '',
+  targetDurationMinutes = null,
+  onFinalizeTurns
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [updates, setUpdates] = useState<ProgressUpdate[]>([]);
   const [voiceMappings, setVoiceMappings] = useState<Record<string, SpeakerVoiceMapping>>({});
   const [configCompleted, setConfigCompleted] = useState(false);
-  const [transcript, setTranscript] = useState(initialTranscript);
+  const [turns, setTurns] = useState<DialogTurn[]>([]);
+  const [isTranscriptDirty, setIsTranscriptDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Use the AudioContext for audio generation
   const { 
     generateSegmentAudio, 
     isGeneratingSegment, 
     segmentError 
   } = useAudio();
 
-  // Effect to handle segment errors
+  useEffect(() => {
+    const parsedTurns = parseTranscript(initialTranscript);
+    setTurns(parsedTurns);
+    setIsTranscriptDirty(false);
+  }, [initialTranscript]);
+
   useEffect(() => {
     if (segmentError) {
       setError(segmentError);
     }
   }, [segmentError]);
+
+  const handleTurnUpdate = (index: number, updatedTurnData: Partial<DialogTurn>) => {
+    setTurns(prevTurns => {
+      const newTurns = [...prevTurns];
+      newTurns[index] = { ...newTurns[index], ...updatedTurnData };
+      return newTurns;
+    });
+    setIsTranscriptDirty(true);
+  };
+
+  const handleAddTurn = (index: number, speakerToAdd?: string) => {
+    setTurns(prevTurns => {
+      const newTurns = [...prevTurns];
+      const defaultSpeaker = speakerToAdd || speaker || '';
+      newTurns.splice(index + 1, 0, {
+        speaker: defaultSpeaker,
+        content: '',
+        id: crypto.randomUUID(),
+        audioUrl: undefined
+      });
+      return newTurns;
+    });
+    setIsTranscriptDirty(true);
+  };
+
+  const handleDeleteTurn = (index: number) => {
+    setTurns(prevTurns => prevTurns.filter((_, i) => i !== index));
+    setIsTranscriptDirty(true);
+  };
+
+  const handleMoveTurn = (fromIndex: number, direction: 'up' | 'down') => {
+    setTurns(prevTurns => {
+      const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+      if (toIndex < 0 || toIndex >= prevTurns.length) return prevTurns;
+
+      const newTurns = [...prevTurns];
+      const [movedTurn] = newTurns.splice(fromIndex, 1);
+      newTurns.splice(toIndex, 0, movedTurn);
+      return newTurns;
+    });
+    setIsTranscriptDirty(true);
+  };
+
+  const handleSaveFromEditor = () => {
+    setIsTranscriptDirty(false);
+    if (onTranscriptChange) {
+      onTranscriptChange(turnsToText(turns));
+    }
+    console.log("Transcript state saved (dirty flag reset)");
+  };
 
   const addUpdate = (
     stage: string, 
@@ -66,20 +126,17 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
       setUpdates([]);
       setError(null);
 
-      // Add progress updates
       addUpdate('Initializing voice configuration...', 0);
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       addUpdate('Processing voice configurations...', 50);
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Store voice mappings for later use
       setVoiceMappings(mappings);
       setConfigCompleted(true);
       
       addUpdate('Voice configuration complete!', 100, 'complete');
       
-      // If there's no transcript editor functionality, complete immediately
       if (!onTranscriptChange) {
         onComplete('https://example.com/generated-audio.mp3');
       }
@@ -92,24 +149,15 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
     }
   };
 
-  const handleTranscriptSave = (newTranscript: string) => {
-    setTranscript(newTranscript);
-    if (onTranscriptChange) {
-      onTranscriptChange(newTranscript);
-    }
-  };
-
-  // Function to generate audio for a specific segment
-  const handleGenerateSegmentAudio = async (speaker: string, text: string): Promise<string> => {
+  const handleGenerateSegmentAudio = async (speakerName: string, text: string): Promise<string> => {
     try {
       setError(null);
       
-      if (!voiceMappings[speaker]) {
-        throw new Error(`No voice configuration found for speaker: ${speaker}`);
+      if (!voiceMappings[speakerName]) {
+        throw new Error(`No voice configuration found for speaker: ${speakerName}`);
       }
       
-      // Use the AudioContext to generate segment audio
-      const audioUrl = await generateSegmentAudio(speaker, text, voiceMappings);
+      const audioUrl = await generateSegmentAudio(speakerName, text, voiceMappings);
       return audioUrl;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -118,9 +166,26 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
     }
   };
 
+  const { wordCount, estimatedDurationMinutes } = useMemo(() => {
+    const text = turnsToText(turns);
+    const words = text.match(/\b\w+\b/g)?.length ?? 0;
+    const WPM = 150;
+    const duration = words > 0 ? Math.ceil(words / WPM) : 0;
+    return { wordCount: words, estimatedDurationMinutes: duration };
+  }, [turns]);
+
+  const handleFinalComplete = () => {
+    if (isTranscriptDirty) {
+      console.warn("Completing with unsaved changes in the transcript editor.");
+    }
+    if (onFinalizeTurns) {
+      onFinalizeTurns(turns);
+    }
+    onComplete('https://example.com/final-audio.mp3');
+  };
+
   return (
     <div className="space-y-6">
-      {/* Error display */}
       {error && (
         <div className="alert alert-error shadow-xl">
           <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
@@ -136,7 +201,6 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
         </div>
       )}
 
-      {/* Voice Configuration Form */}
       {!configCompleted && (
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
@@ -158,25 +222,29 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
         </div>
       )}
 
-      {/* Transcript Editor (shown after voice configuration) */}
-      {configCompleted && onTranscriptChange && (
+      {configCompleted && (
         <div className="mt-8">
           <TranscriptEditor
-            initialContent={transcript}
-            onSave={handleTranscriptSave}
+            turns={turns}
+            onSave={handleSaveFromEditor}
             isLoading={isGenerating || isGeneratingSegment}
             characters={[speaker]}
             voiceMappings={voiceMappings}
             onGenerateSegmentAudio={handleGenerateSegmentAudio}
-            wordCount={null}
-            estimatedDurationMinutes={null}
-            targetDurationMinutes={null}
+            wordCount={wordCount}
+            estimatedDurationMinutes={estimatedDurationMinutes}
+            targetDurationMinutes={targetDurationMinutes}
+            onTurnUpdate={handleTurnUpdate}
+            onAddTurn={handleAddTurn}
+            onDeleteTurn={handleDeleteTurn}
+            onMoveTurn={handleMoveTurn}
+            isDirty={isTranscriptDirty}
           />
           
           <div className="mt-6 flex justify-end">
             <button
               className="btn btn-primary gap-2"
-              onClick={() => onComplete('https://example.com/final-audio.mp3')}
+              onClick={handleFinalComplete}
               disabled={isGenerating || isGeneratingSegment}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -188,7 +256,6 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
         </div>
       )}
 
-      {/* Generation Progress */}
       {(updates.length > 0 || isGenerating || isGeneratingSegment) && (
         <AudioGenerationProgress
           updates={updates}

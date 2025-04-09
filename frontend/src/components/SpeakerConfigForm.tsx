@@ -26,7 +26,7 @@ const SpeakerConfigForm: React.FC<SpeakerConfigFormProps> = ({
   onSubmit,
   isLoading = false,
 }) => {
-  const { voiceOptions, voiceMetadata, isLoading: isLoadingVoices } = useVoice();
+  const { voiceOptions, voiceMetadata, isLoading: isLoadingVoices, error: voiceLoadingError } = useVoice();
   const { selectedVoice, selectVoice } = useVoiceSelection();
   const speakerConfig = useSpeakerConfig('template'); // Use a template config for initial values
   
@@ -203,7 +203,7 @@ const SpeakerConfigForm: React.FC<SpeakerConfigFormProps> = ({
     });
   };
 
-  if (!voiceOptions || !voiceMetadata || isLoadingVoices || Object.keys(speakerStates).length === 0) {
+  if (isLoadingVoices || (!voiceOptions && !voiceLoadingError) || (!voiceMetadata && !voiceLoadingError)) {
     return (
       <div className="flex items-center justify-center min-h-[50vh] p-12 bg-gradient-to-br from-base-200/50 to-base-300/30 rounded-2xl">
         <div className="flex flex-col items-center gap-6">
@@ -211,6 +211,29 @@ const SpeakerConfigForm: React.FC<SpeakerConfigFormProps> = ({
           <p className="text-lg font-medium text-base-content/70 animate-pulse">Loading voice options...</p>
           <div className="badge badge-ghost badge-sm animate-pulse">Initializing components...</div>
         </div>
+      </div>
+    );
+  }
+
+  if (voiceLoadingError) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] p-12 bg-gradient-to-br from-error/10 to-error/5 rounded-2xl border border-error/30">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-error shrink-0 h-16 w-16" fill="none" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <h2 className="text-2xl font-bold text-error">Failed to Load Voice Options</h2>
+          <p className="text-base-content/80">{voiceLoadingError}</p>
+          <p className="text-sm text-base-content/60">Please check the backend API connection and try refreshing the page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!voiceOptions || !voiceMetadata) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <p className="text-lg text-error">Unexpected state: Voice data is missing after loading.</p>
       </div>
     );
   }

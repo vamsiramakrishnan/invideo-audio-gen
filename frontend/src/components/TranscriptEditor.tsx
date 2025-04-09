@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SpeakerVoiceMapping } from '../types/speaker';
-
-interface DialogTurn {
-  speaker: string;
-  content: string;
-  id: string; // For stable keys and reordering
-  audioUrl?: string; // Add audio URL for individual segments
-}
+import { DialogTurn, parseTranscript, turnsToText } from '../utils/transcriptUtils';
 
 // Define base theme colors for dynamic assignment
 const THEME_COLORS = [
@@ -72,8 +66,13 @@ interface SpeakerTheme {
 }
 
 interface TranscriptEditorProps {
-  initialContent: string;
-  onSave: (content: string) => void;
+  turns: DialogTurn[];
+  onTurnUpdate: (index: number, updatedTurn: Partial<DialogTurn>) => void;
+  onAddTurn: (index: number, speaker?: string) => void;
+  onDeleteTurn: (index: number) => void;
+  onMoveTurn: (fromIndex: number, direction: 'up' | 'down') => void;
+  onSave: () => void;
+  isDirty: boolean;
   isLoading: boolean;
   characters: string[];
   voiceMappings?: Record<string, SpeakerVoiceMapping>;
@@ -81,13 +80,18 @@ interface TranscriptEditorProps {
   wordCount: number | null;
   estimatedDurationMinutes: number | null;
   targetDurationMinutes: number | null;
-  onExtendTranscript?: (currentTranscript: string) => Promise<string>;
+  onExtendTranscript?: () => Promise<void>;
   isExtending?: boolean;
 }
 
 const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
-  initialContent,
+  turns,
+  onTurnUpdate,
+  onAddTurn,
+  onDeleteTurn,
+  onMoveTurn,
   onSave,
+  isDirty,
   isLoading,
   characters,
   voiceMappings = {},
@@ -98,8 +102,6 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
   onExtendTranscript,
   isExtending = false,
 }) => {
-  const [turns, setTurns] = useState<DialogTurn[]>([]);
-  const [isDirty, setIsDirty] = useState(false);
   const [selectedTurnIndex, setSelectedTurnIndex] = useState<number | null>(null);
   const [generatingAudioForIndex, setGeneratingAudioForIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -157,57 +159,19 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
     return speakerThemes[speaker] || speakerThemes.default;
   };
 
-  // Parse initial content into turns
-  useEffect(() => {
-    const parsedTurns = parseTranscript(initialContent);
-    setTurns(parsedTurns);
-  }, [initialContent]);
-
-  // Parse transcript text into turns
-  const parseTranscript = (text: string): DialogTurn[] => {
-    // Split by newlines and look for "Speaker:" pattern
-    return text.split('\n')
-      .reduce<DialogTurn[]>((acc, line) => {
-        const match = line.match(/^([^:]+):\s*(.+)$/);
-        if (match) {
-          acc.push({
-            speaker: match[1].trim(),
-            content: match[2].trim(),
-            id: crypto.randomUUID()
-          });
-        } else if (line.trim() && acc.length > 0) {
-          // Append to last turn if it's a continuation
-          acc[acc.length - 1].content += ' ' + line.trim();
-        }
-        return acc;
-      }, []);
-  };
-
-  // Convert turns back to text format
-  const turnsToText = (dialogTurns: DialogTurn[]): string => {
-    return dialogTurns.map(turn => `${turn.speaker}: ${turn.content}`).join('\n');
-  };
-
   const handleTurnUpdate = (index: number, updatedTurn: Partial<DialogTurn>) => {
-    const newTurns = [...turns];
-    newTurns[index] = { ...newTurns[index], ...updatedTurn };
-    setTurns(newTurns);
-    setIsDirty(true);
+    onTurnUpdate(index, updatedTurn);
   };
 
   const handleAddTurn = (index: number) => {
-    const newTurns = [...turns];
-    newTurns.splice(index + 1, 0, { speaker: '', content: '', id: crypto.randomUUID() });
-    setTurns(newTurns);
+    const defaultSpeaker = characters.length > 0 ? characters[0] : '';
+    onAddTurn(index, defaultSpeaker);
     setSelectedTurnIndex(index + 1);
-    setIsDirty(true);
   };
 
   const handleDeleteTurn = (index: number) => {
-    const newTurns = turns.filter((_, i) => i !== index);
-    setTurns(newTurns);
+    onDeleteTurn(index);
     setSelectedTurnIndex(null);
-    setIsDirty(true);
   };
 
   const handleMoveTurn = (fromIndex: number, direction: 'up' | 'down') => {
@@ -215,24 +179,13 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
         (direction === 'down' && fromIndex === turns.length - 1)) return;
 
     const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
-    const newTurns = [...turns];
-    const [movedTurn] = newTurns.splice(fromIndex, 1);
-    newTurns.splice(toIndex, 0, movedTurn);
-    setTurns(newTurns);
+    onMoveTurn(fromIndex, direction);
     setSelectedTurnIndex(toIndex);
-    setIsDirty(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(turnsToText(turns));
-  };
-
-  const handleReset = () => {
-    const parsedTurns = parseTranscript(initialContent);
-    setTurns(parsedTurns);
-    setSelectedTurnIndex(null);
-    setIsDirty(false);
+    onSave();
   };
 
   const handleGenerateAudio = async (index: number) => {
@@ -260,14 +213,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
       const audioUrl = await onGenerateSegmentAudio(turn.speaker, turn.content);
       
       // Update the turn with the new audio URL
-      const updatedTurns = [...turns];
-      updatedTurns[index] = {
-        ...updatedTurns[index],
-        audioUrl
-      };
-      
-      setTurns(updatedTurns);
-      setIsDirty(true);
+      onTurnUpdate(index, { audioUrl });
       
       // Show success state briefly
       setAudioGenerationSuccess(index);
@@ -302,14 +248,13 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
       }, []);
       
       if (turnsNeedingAudio.length === 0) {
-        setError("No turns need audio generation");
+        console.log("No turns need audio generation");
         return;
       }
       
       // Generate audio for each turn sequentially
       let successCount = 0;
       for (const index of turnsNeedingAudio) {
-        setGeneratingAudioForIndex(index);
         const success = await handleGenerateAudio(index);
         if (success) successCount++;
         
@@ -317,17 +262,14 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      if (successCount > 0) {
-        setError(null);
-      } else {
-        setError("Failed to generate audio for any turns");
+      if (successCount === 0) {
+        setError("Failed to generate audio for any turns during batch");
       }
     } catch (err) {
       console.error('Error in batch audio generation:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate audio in batch');
     } finally {
       setIsBatchGenerating(false);
-      setGeneratingAudioForIndex(null);
     }
   };
 
@@ -401,15 +343,8 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
     setError(null); // Clear previous errors
 
     try {
-      const currentTranscript = turnsToText(turns);
-      const extendedTranscript = await onExtendTranscript(currentTranscript);
-      
-      // Reparse the extended transcript
-      const newTurns = parseTranscript(extendedTranscript);
-      setTurns(newTurns);
-      setIsDirty(true); // Mark as dirty since content changed
-      setSelectedTurnIndex(null); // Deselect any selected turn
-
+      await onExtendTranscript();
+      setSelectedTurnIndex(null);
     } catch (err) {
       console.error('Error extending transcript:', err);
       setError(err instanceof Error ? err.message : 'Failed to extend transcript');
@@ -491,13 +426,6 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                 {isExtending ? 'Extending...' : 'Extend Transcript'}
               </button>
             )}
-            <button 
-              className="btn btn-sm btn-outline btn-primary"
-              onClick={handleReset}
-              disabled={isLoading || !isDirty}
-            >
-              Reset
-            </button>
             <button 
               className="btn btn-sm btn-primary"
               onClick={handleSubmit}
@@ -738,7 +666,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                       value={turn.content}
                       onChange={(e) => handleTurnUpdate(index, { content: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
-                      placeholder={`Enter ${turn.speaker}'s dialogue...`}
+                      placeholder={`Enter ${turn.speaker || 'dialogue'}...`}
                     />
                     
                     <div className="flex justify-between items-center">
