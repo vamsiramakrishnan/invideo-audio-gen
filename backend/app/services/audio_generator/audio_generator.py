@@ -3,6 +3,8 @@ from typing import Dict, Any, Optional, List, Tuple
 from google import genai
 from google.genai.types import Content, GenerateContentConfig, Part, SpeechConfig, VoiceConfig
 import os
+import io # Import io for BytesIO
+from pydub import AudioSegment # Ensure pydub is imported
 
 from app.core.config import settings
 from .processor import AudioProcessor
@@ -82,19 +84,30 @@ class AudioGenerator:
         voice: str, 
         speaker_config: Dict[str, Any]
     ) -> Tuple[Any, str]:
-        """Generate a single audio segment with detailed voice configuration."""
+        """
+        Generate a single audio segment, save it, and return the relative path.
+
+        Args:
+            text (str): The text to synthesize.
+            voice (str): The prebuilt voice name.
+            speaker_config (Dict[str, Any]): Speaker configuration.
+
+        Returns:
+            Tuple[Any, str]: A tuple containing the processed audio object (if needed, e.g., for duration) 
+                             and the relative path to the saved audio file.
+        """
         try:
-            # Create voice configuration
+            # Create voice configuration (without speaking_rate)
             voice_config = VoiceConfig(
                 prebuilt_voice_config={
                     "voice_name": voice,
-                    "speaking_rate": speaker_config["speaking_rate"]["normal"] / 100.0,  # Convert to multiplier
                 }
             )
 
-            # Create speech configuration
+            # Create speech configuration (just voice_config)
             speech_config = SpeechConfig(
                 voice_config=voice_config,
+                # speaking_rate=speaker_config["speaking_rate"]["normal"] / 100.0, # Removed based on schema
             )
 
             # Generate content configuration
@@ -119,15 +132,74 @@ class AudioGenerator:
             if not response.candidates:
                 raise ValueError("No audio generated")
 
-            # Get audio data
-            audio_data = response.candidates[0].content.parts[0].audio.data
+            # Get audio part and ensure it has inline_data
+            audio_part = response.candidates[0].content.parts[0]
+            if not audio_part.inline_data:
+                raise ValueError("No inline audio data found in the response")
+            
+            # Get raw audio bytes and mime type
+            audio_bytes = audio_part.inline_data.data
+            mime_type = audio_part.inline_data.mime_type
+
+            # Determine audio format from mime type
+            if mime_type == "audio/wav":
+                audio_stream = io.BytesIO(audio_bytes)
+                audio_segment = AudioSegment.from_file(audio_stream, format="wav")
+            elif mime_type == "audio/mp3":
+                audio_stream = io.BytesIO(audio_bytes)
+                audio_segment = AudioSegment.from_file(audio_stream, format="mp3")
+            elif mime_type and mime_type.startswith("audio/L16"):
+                # Handle raw PCM data (L16)
+                try:
+                    # Extract rate parameter (e.g., from 'audio/L16;codec=pcm;rate=24000')
+                    # Basic parsing, might need refinement for more complex mime strings
+                    params = dict(p.split('=') for p in mime_type.split(';')[1:] if '=' in p)
+                    rate = int(params.get('rate', 24000)) # Default to 24k if not found
+                    sample_width = 2 # L16 means 16-bit = 2 bytes
+                    channels = 1 # Assume mono
+                    
+                    audio_segment = AudioSegment(
+                        data=audio_bytes,
+                        sample_width=sample_width,
+                        frame_rate=rate,
+                        channels=channels
+                    )
+                    print(f"Successfully parsed L16 audio with rate={rate}Hz")
+                except Exception as parse_err:
+                    print(f"Error parsing L16 mime type '{mime_type}': {parse_err}")
+                    # Fallback or raise error
+                    raise ValueError(f"Could not parse L16 audio parameters from mime type: {mime_type}") from parse_err
+            else:
+                # Fallback for other unrecognized types - try letting pydub guess from stream
+                print(f"Warning: Unrecognized audio mime type '{mime_type}'. Attempting to load directly.")
+                try:
+                    audio_stream = io.BytesIO(audio_bytes)
+                    audio_segment = AudioSegment.from_file(audio_stream)
+                except Exception as load_err:
+                     print(f"Error loading audio with unrecognized mime type '{mime_type}': {load_err}")
+                     raise ValueError(f"Could not load audio data with mime type: {mime_type}") from load_err
 
             # Process audio with our custom processor
-            processed_audio = self.processor.normalize_audio(audio_data)
+            processed_audio = self.processor.normalize_audio(audio_segment)
 
-            return processed_audio
+            # Generate unique filename (use .mp3 for better browser compatibility)
+            segment_filename = f"{self.run_id}_{speaker_config.get('name', 'unknown')}_{generate_unique_run_id()}.mp3"
+            segment_path = self.segments_dir / segment_filename
+            
+            # Save the processed audio using the processor, explicitly setting format to mp3
+            saved_path = self.processor.save_audio(processed_audio, segment_path, format="mp3")
+            
+            # Return the processed audio object and its relative path
+            relative_path = os.path.join("segments", segment_filename) # Path relative to AUDIO_DIR
+            
+            # Make sure to return the processed audio object itself if needed for duration etc.
+            # If AudioProcessor.save_audio doesn't return the object, keep processed_audio
+            return processed_audio, relative_path 
 
         except Exception as e:
+            # Enhanced error logging
+            import traceback
+            traceback.print_exc()
             raise RuntimeError(f"Failed to generate audio segment: {str(e)}")
 
     async def generate(self, request: Dict[str, Any]):
@@ -190,15 +262,18 @@ class AudioGenerator:
             
             # Generate segment
             try:
-                segment_result, segment_path = await self._generate_segment(text, voice, speaker_config)
+                # segment_result is the processed audio object, segment_path is the relative URL
+                segment_result, relative_segment_path = await self._generate_segment(text, voice, speaker_config) 
                 
-                # Yield segment completion
+                # Yield segment completion with the relative path for the frontend
+                # Use the correct static mount path defined in main.py
+                audio_url = f"/audio/{relative_segment_path}"
                 yield {
                     "type": "segment_complete",
                     "stage": "segment_generated",
                     "speaker": speaker,
-                    "segment_path": segment_path,
-                    "duration": segment_result.duration if hasattr(segment_result, 'duration') else None,
+                    "audioUrl": audio_url, # Use the constructed static URL
+                    "duration": segment_result.duration if hasattr(segment_result, 'duration') else None, 
                     "progress": {
                         "current": idx,
                         "total": total_segments,
@@ -208,7 +283,7 @@ class AudioGenerator:
                 
                 audio_segments.append({
                     "speaker": speaker,
-                    "path": segment_path,
+                    "path": relative_segment_path, # Store relative path internally if needed
                     "duration": segment_result.duration if hasattr(segment_result, 'duration') else None
                 })
                 
@@ -286,14 +361,15 @@ class AudioGenerator:
             }
             
             # Generate the audio segment
-            segment_audio, segment_path = await self._generate_segment(text, voice, speaker_config)
+            # segment_audio is the processed audio object, relative_segment_path is the relative URL
+            segment_audio, relative_segment_path = await self._generate_segment(text, voice, speaker_config)
             
-            # Yield segment completion
+            # Yield segment completion with the RELATIVE path for the frontend hook
             yield {
                 "type": "segment_complete",
                 "stage": "segment_generated",
                 "speaker": speaker,
-                "segment_path": segment_path,
+                "segment_path": relative_segment_path, # Use relative_segment_path with key segment_path
                 "duration": segment_audio.duration if hasattr(segment_audio, 'duration') else None,
                 "progress": {
                     "current": 1,
@@ -309,7 +385,7 @@ class AudioGenerator:
                 "message": "Audio generation complete",
                 "segments": [{
                     "speaker": speaker,
-                    "path": segment_path,
+                    "path": relative_segment_path, # Store relative path internally if needed
                     "duration": segment_audio.duration if hasattr(segment_audio, 'duration') else None
                 }],
                 "progress": {

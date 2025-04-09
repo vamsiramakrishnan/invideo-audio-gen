@@ -26,12 +26,14 @@ class AudioProcessor:
         
         return combined
 
-    def save_podcast(self, audio: AudioSegment, filepath: str) -> str:
-        """Save the podcast audio file and return the path."""
-        output_path = Path(filepath)
+    def save_audio(self, audio: AudioSegment, filepath: Path, format: str = "wav") -> str:
+        """Save the audio segment to a file and return the path."""
+        # Ensure filepath is a Path object if it isn't already
+        output_path = Path(filepath) 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        audio.export(str(output_path), format="wav")
+        # Export expects a string path and uses the provided format
+        audio.export(str(output_path), format=format)
         return str(output_path)
 
     def normalize_audio(self, audio: AudioSegment, target_db: float = -20.0) -> AudioSegment:

@@ -67,11 +67,12 @@ export function useSegmentAudioGeneration(apiBaseUrl: string = ''): UseSegmentAu
             
             // Handle different event types
             if (data.type === 'segment_complete') {
-              // In a real implementation, this would be a URL to the audio file
-              audioUrl = `${apiBaseUrl}/api/audio/${data.segment_path}`;
+              // Construct the absolute URL using the correct static mount path
+              audioUrl = `${apiBaseUrl}/audio/${data.segment_path}`;
             } else if (data.type === 'complete') {
               if (!audioUrl && data.segments && data.segments.length > 0) {
-                audioUrl = `${apiBaseUrl}/api/audio/${data.segments[0].path}`;
+                // Construct the absolute URL using the correct static mount path
+                audioUrl = `${apiBaseUrl}/audio/${data.segments[0].path}`;
               }
             } else if (data.type === 'error') {
               throw new Error(data.error || 'Unknown error');

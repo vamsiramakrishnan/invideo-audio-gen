@@ -151,7 +151,11 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
     }
   };
 
-  const handleGenerateSegmentAudio = async (speakerName: string, text: string): Promise<string> => {
+  const handleGenerateSegmentAudio = async (
+    index: number,
+    speakerName: string, 
+    text: string
+  ): Promise<void> => {
     try {
       setError(null);
       
@@ -159,8 +163,8 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
         throw new Error(`No voice configuration found for speaker: ${speakerName}`);
       }
       
-      const audioUrl = await generateSegmentAudio(speakerName, text, voiceMappings);
-      return audioUrl;
+      await generateSegmentAudio(speakerName, text, voiceMappings);
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       setError(errorMessage);

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { ProgressUpdate, GenerationRequest } from '../types/audio';
 
 const createErrorUpdate = (message: string): ProgressUpdate => ({
@@ -12,7 +12,7 @@ const createErrorUpdate = (message: string): ProgressUpdate => ({
   }
 });
 
-export function useAudioGeneration() {
+export function useAudioGeneration(apiBaseUrl: string = '') {
   const [isGenerating, setIsGenerating] = useState(false);
   const [updates, setUpdates] = useState<ProgressUpdate[]>([]);
 
@@ -21,7 +21,7 @@ export function useAudioGeneration() {
     setUpdates([]);
 
     try {
-      const response = await fetch('/api/generate-audio', {
+      const response = await fetch(`${apiBaseUrl}/api/generate-audio`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -31,73 +31,82 @@ export function useAudioGeneration() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorDetails = `HTTP error! status: ${response.status}`;
+        try {
+            const errorJson = await response.json();
+            errorDetails = errorJson.detail || errorDetails;
+        } catch {
+            // Ignore if body is not JSON or empty
+        }
+        throw new Error(errorDetails);
+      }
+      
+      if (!response.body) {
+          throw new Error('Response body is missing.');
       }
 
-      // Create a new ReadableStream from the response body
-      const reader = response.body!.getReader();
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          const lastUpdate = updates[updates.length - 1];
+          if (lastUpdate && lastUpdate.type !== 'complete' && lastUpdate.type !== 'error') {
+              console.warn('Stream ended without a final complete/error message.');
+          }
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n\n');
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          let eventType = 'message';
+          let jsonData = '';
+
+          const eventMatch = line.match(/^event: (.+)/m);
+          if (eventMatch) {
+            eventType = eventMatch[1].trim();
+          }
+
+          const dataMatch = line.match(/^data: (.+)/m);
+          if (dataMatch) {
+            jsonData = dataMatch[1].trim();
+          } else {
+            continue;
+          }
+          
+          if (jsonData) {
+            try {
+              const update = JSON.parse(jsonData) as ProgressUpdate;
+              console.log("Received update:", update);
+              setUpdates(prev => [...prev, update]);
               
-              if (done) {
-                controller.close();
-                break;
+              if (update.type === 'complete' || update.type === 'error') {
+                  setIsGenerating(false); 
               }
-              
-              controller.enqueue(value);
+            } catch (e) {
+              console.error('Failed to parse SSE JSON:', jsonData, e);
+              setUpdates(prev => [...prev, createErrorUpdate('Failed to parse server update')]);
             }
-          } catch (error) {
-            controller.error(error);
           }
-        },
-      });
-
-      // Create a new response with the stream
-      const newResponse = new Response(stream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-        },
-      });
-
-      const eventSource = new EventSource(URL.createObjectURL(await newResponse.blob()));
-
-      // Listen for specific event types
-      ['progress', 'segment_complete', 'complete', 'error'].forEach(eventType => {
-        eventSource.addEventListener(eventType, (event: MessageEvent) => {
-          try {
-            const update = JSON.parse(event.data) as ProgressUpdate;
-            setUpdates(prev => [...prev, update]);
-            
-            if (update.type === 'complete' || update.type === 'error') {
-              setIsGenerating(false);
-              eventSource.close();
-            }
-          } catch (e) {
-            console.error('Failed to parse SSE update:', e);
-            setUpdates(prev => [...prev, createErrorUpdate('Failed to parse server update')]);
-          }
-        });
-      });
-
-      // Handle connection error
-      eventSource.onerror = (error) => {
-        console.error('EventSource error:', error);
-        setUpdates(prev => [...prev, createErrorUpdate('Connection error occurred')]);
-        setIsGenerating(false);
-        eventSource.close();
-      };
+        }
+      }
+      setIsGenerating(false); 
 
     } catch (error) {
+        console.error("Error during fetch/stream processing:", error);
       setUpdates(prev => [
         ...prev,
-        createErrorUpdate(error instanceof Error ? error.message : 'Unknown error occurred')
+        createErrorUpdate(error instanceof Error ? error.message : 'Unknown fetch/stream error occurred')
       ]);
       setIsGenerating(false);
     }
-  }, []);
+  }, [apiBaseUrl]);
 
   return {
     generateAudio,

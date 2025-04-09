@@ -76,7 +76,7 @@ interface TranscriptEditorProps {
   isLoading: boolean;
   characters: string[];
   voiceMappings?: Record<string, SpeakerVoiceMapping>;
-  onGenerateSegmentAudio?: (speaker: string, text: string) => Promise<string>;
+  onGenerateSegmentAudio?: (index: number, speaker: string, text: string) => Promise<void>;
   wordCount: number | null;
   estimatedDurationMinutes: number | null;
   targetDurationMinutes: number | null;
@@ -103,9 +103,8 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
   isExtending = false,
 }) => {
   const [selectedTurnIndex, setSelectedTurnIndex] = useState<number | null>(null);
-  const [generatingAudioForIndex, setGeneratingAudioForIndex] = useState<number | null>(null);
+  const [generatingAudioIndices, setGeneratingAudioIndices] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [audioGenerationSuccess, setAudioGenerationSuccess] = useState<number | null>(null);
   const [playingAudioIndex, setPlayingAudioIndex] = useState<number | null>(null);
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const audioRefs = React.useRef<Record<string, HTMLAudioElement | null>>({});
@@ -205,31 +204,27 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
         throw new Error(`No voice mapping found for speaker: ${turn.speaker}`);
       }
       
-      setGeneratingAudioForIndex(index);
-      setAudioGenerationSuccess(null);
+      // Add index to the set of generating turns
+      setGeneratingAudioIndices(prev => new Set(prev).add(index)); 
       setError(null);
       
-      // Generate audio using the provided function
-      const audioUrl = await onGenerateSegmentAudio(turn.speaker, turn.content);
+      // Call the prop function to initiate generation
+      // The parent component will handle the stream and call onTurnUpdate when done
+      await onGenerateSegmentAudio(index, turn.speaker, turn.content);
       
-      // Update the turn with the new audio URL
-      onTurnUpdate(index, { audioUrl });
-      
-      // Show success state briefly
-      setAudioGenerationSuccess(index);
-      setTimeout(() => {
-        if (setAudioGenerationSuccess) {
-          setAudioGenerationSuccess(null);
-        }
-      }, 2000);
-      
-      return true;
+      return true; // Indicate initiation success
     } catch (err) {
-      console.error('Error generating audio:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate audio');
-      return false;
+      console.error('Error initiating audio generation:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initiate audio generation');
+      // No need to remove index here if we use finally
+      return false; // Indicate initiation failure
     } finally {
-      setGeneratingAudioForIndex(null);
+      // Ensure loading state for this segment is cleared regardless of success/error
+      setGeneratingAudioIndices(prev => {
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
     }
   };
 
@@ -244,6 +239,10 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
         if (canGenerateAudio(turn) && !turn.audioUrl) {
           acc.push(index);
         }
+        // Also check if it's not already generating
+        if (canGenerateAudio(turn) && !turn.audioUrl && !generatingAudioIndices.has(index)) {
+          acc.push(index);
+        }
         return acc;
       }, []);
       
@@ -256,14 +255,15 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
       let successCount = 0;
       for (const index of turnsNeedingAudio) {
         const success = await handleGenerateAudio(index);
+        // We only count successful *initiations* here
         if (success) successCount++;
         
-        // Small delay between requests to avoid overwhelming the API
+        // Small delay between *initiating* requests
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      if (successCount === 0) {
-        setError("Failed to generate audio for any turns during batch");
+      if (successCount === 0 && turnsNeedingAudio.length > 0) {
+        setError("Failed to initiate audio generation for any required turns during batch");
       }
     } catch (err) {
       console.error('Error in batch audio generation:', err);
@@ -575,22 +575,21 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                                 ${theme.bgColor} ${theme.textColor}
                                 hover:scale-110 transition-all duration-200 ease-in-out
                                 shadow-md hover:shadow-lg
-                                ${generatingAudioForIndex === index ? 'animate-pulse' : ''}
-                                ${audioGenerationSuccess === index ? 'ring-4 ring-success/50' : ''}
+                                ${generatingAudioIndices.has(index) ? 'animate-pulse' : ''}
                               `}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleGenerateAudio(index);
                               }}
-                              disabled={generatingAudioForIndex === index}
+                              disabled={generatingAudioIndices.has(index)}
                               aria-label={`Generate audio for ${turn.speaker}`}
                             >
-                              {generatingAudioForIndex === index ? (
+                              {generatingAudioIndices.has(index) ? (
                                 <div className="flex items-center justify-center">
                                   <span className="loading loading-spinner loading-xs"></span>
                                   <span className="sr-only">Generating audio...</span>
                                 </div>
-                              ) : audioGenerationSuccess === index ? (
+                              ) : turn.audioUrl ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>

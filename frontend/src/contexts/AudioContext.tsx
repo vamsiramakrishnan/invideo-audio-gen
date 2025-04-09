@@ -30,14 +30,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode; apiBaseUrl?: s
 }) => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   
-  // Use hooks for audio generation
+  // Pass apiBaseUrl to useAudioGeneration hook
   const {
     generateAudio: generateAudioHook,
     isGenerating,
     updates,
     hasError,
     isComplete
-  } = useAudioGeneration();
+  } = useAudioGeneration(apiBaseUrl);
   
   // Use hook for segment audio generation
   const {

@@ -63,6 +63,7 @@ async def generate_audio(
     async def generate():
         try:
             async for update in audio_generator.generate(request.dict()):
+                print(f"Backend yielding update (full): {update}")
                 yield format_sse(update, event=update["type"]).encode("utf-8")
         except Exception as e:
             error_response = {
@@ -131,6 +132,7 @@ async def generate_segment_audio(
     async def generate():
         try:
             async for update in audio_generator.generate_single_segment(request.dict()):
+                print(f"Backend yielding update (segment): {update}")
                 yield format_sse(update, event=update["type"]).encode("utf-8")
         except Exception as e:
             error_response = {

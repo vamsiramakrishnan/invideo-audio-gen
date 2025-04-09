@@ -207,3 +207,6 @@ coverage/
 logs/
 *.log
 
+*.mp3
+backend/generated_transcripts/*
+backend/podcast_outputs/*

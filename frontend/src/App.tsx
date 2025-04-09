@@ -344,7 +344,11 @@ const AppContent = () => {
   };
 
   // Function to generate segment audio (passed to TranscriptEditor)
-  const handleGenerateSegmentAudio = async (speaker: string, text: string): Promise<string> => {
+  const handleGenerateSegmentAudio = async (
+    index: number,
+    speaker: string, 
+    text: string
+  ): Promise<void> => {
     // This function now correctly uses the generateSegmentAudio from useAudio context
     if (!generateSegmentAudio) {
       throw new Error("Segment audio generation function not available from context.");
@@ -352,12 +356,14 @@ const AppContent = () => {
     // Error handling might be managed within useAudio, but double-check
     setError(null);
     try {
-      const url = await generateSegmentAudio(speaker, text, voiceMappings);
-      // Update the specific turn in the local state - requires finding the turn?
-      // This logic is now handled *inside* TranscriptEditor via onTurnUpdate prop.
-      return url;
+      // Call the context function - it returns the absolute URL when done
+      const absoluteAudioUrl = await generateSegmentAudio(speaker, text, voiceMappings);
+
+      // Update the specific turn in App state with the received URL
+      handleTurnUpdate(index, { audioUrl: absoluteAudioUrl });
+
     } catch(err) {
-      setError(err instanceof Error ? err.message : "Failed to generate segment audio");
+      setError(err instanceof Error ? err.message : "Failed to initiate segment audio generation");
       throw err; // Re-throw for TranscriptEditor's internal handling
     }
   };
