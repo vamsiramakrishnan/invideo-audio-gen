@@ -19,82 +19,57 @@ const AudioGenerationProgress: React.FC<AudioGenerationProgressProps> = ({
   const isComplete = updates.some(update => update.type === 'complete');
 
   return (
-    <div className="card glass shadow-xl border border-base-content/10">
-      <div className="card-body p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="card-title text-xl flex items-center gap-2">
-            <span className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg shadow-sm">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-primary"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                />
+    <div className="card bg-base-100 shadow-xl border border-base-300/50">
+      <div className="card-body p-5 md:p-6 space-y-5">
+        {/* --- Improved Header --- */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-base-300/70">
+          <h2 className="card-title text-xl font-semibold text-base-content flex items-center gap-3">
+            <span className="p-2 bg-gradient-to-br from-accent/15 to-accent/5 rounded-lg shadow-sm border border-accent/20">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
               </svg>
             </span>
-            Audio Generation
-            {isGenerating && (
-              <span className="loading loading-spinner loading-sm text-primary ml-2" />
-            )}
+            Audio Generation Progress
           </h2>
-          {latestUpdate && (
-            <div className="badge badge-primary badge-outline font-medium">
-              {latestUpdate.progress.current} / {latestUpdate.progress.total} segments
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {isGenerating && (
+              <span className="loading loading-spinner loading-sm text-primary" />
+            )}
+            {latestUpdate && (
+              <div className="text-sm font-medium text-base-content/70">
+                <span className="font-semibold text-primary">{latestUpdate.progress.current}</span> / {latestUpdate.progress.total} Segments
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Progress Bar */}
-        {latestUpdate && (
-          <div className="w-full">
-            <div className="flex justify-between mb-2">
-              <span className="text-sm font-medium text-base-content/70">
+        {/* --- Improved Progress Bar & Stage --- */}
+        {latestUpdate && !isComplete && !hasError && (
+          <div className="w-full pt-1">
+            <div className="mb-2">
+              <span className="text-base font-medium text-base-content block mb-1">
                 {latestUpdate.stage}
               </span>
-              <span className="text-sm font-medium text-primary">
-                {Math.round(latestUpdate.progress.percentage)}%
-              </span>
+              {latestUpdate.message && (
+                  <span className="text-xs text-base-content/60 block">
+                    {latestUpdate.message} {latestUpdate.speaker ? `(Speaker: ${latestUpdate.speaker})` : ''}
+                  </span>
+              )}
             </div>
-            <div className="w-full bg-base-200 rounded-full h-3 overflow-hidden shadow-inner">
+            <div className="relative w-full bg-base-200 rounded-full h-2.5 overflow-hidden shadow-inner border border-base-300/50">
               <motion.div
-                className="h-full bg-gradient-to-r from-primary/80 to-primary"
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary/70 via-primary to-secondary/80 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${latestUpdate.progress.percentage}%` }}
-                transition={{ duration: 0.5 }}
+                transition={{ duration: 0.6, ease: "easeInOut" }}
               />
+              <div className="absolute inset-0 flex items-center justify-end pr-2">
+                <span className="text-[10px] font-bold text-primary-content mix-blend-overlay">
+                  {Math.round(latestUpdate.progress.percentage)}%
+                </span>
+              </div>
             </div>
           </div>
-        )}
-
-        {/* Current Operation */}
-        {isGenerating && latestUpdate && (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={latestUpdate.speaker}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="flex items-center gap-4 p-5 bg-base-200/50 rounded-xl backdrop-blur-sm shadow-sm"
-            >
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shadow-md">
-                <span className="loading loading-spinner loading-sm text-primary" />
-              </div>
-              <div>
-                <div className="font-medium text-base-content">{latestUpdate.message}</div>
-                <div className="text-sm text-base-content/70 mt-1">
-                  Speaker: <span className="font-medium text-primary">{latestUpdate.speaker}</span>
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
         )}
 
         {/* Completed Segments */}

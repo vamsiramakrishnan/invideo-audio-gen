@@ -128,17 +128,17 @@ const VoiceSpeakerSelector: React.FC<VoiceSpeakerSelectorProps> = ({
   }
 
   return (
-    <div className="voice-speaker-selector">
-      <h3 className="text-xl font-bold mb-5 text-base-content flex items-center gap-2">
+    <div className="voice-speaker-selector p-6 bg-base-100 rounded-xl shadow-md">
+      <h3 className="text-2xl font-semibold mb-6 text-base-content flex items-center gap-3">
         <span className="text-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
           </svg>
         </span>
         Select Voice
       </h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {availableVoices.map((voice) => {
           // Use metadata from voiceMetadata if available, fallback to config
           const metadata = voiceMetadata[voice] || VOICE_CONFIGS[voice];
@@ -158,27 +158,27 @@ const VoiceSpeakerSelector: React.FC<VoiceSpeakerSelectorProps> = ({
       </div>
       
       {selectedVoice && (
-        <div className="mt-6 p-4 bg-base-200 rounded-lg">
-          <div className="flex justify-between items-center mb-3">
-            <h4 className="font-semibold">Selected Voice: {selectedVoice}</h4>
+        <div className="mt-8 p-5 bg-base-200 rounded-lg border border-base-300">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="text-lg font-semibold text-base-content">Selected Voice: {selectedVoice}</h4>
             <button 
-              className="btn btn-sm btn-ghost" 
+              className="btn btn-sm btn-outline btn-primary" 
               onClick={() => setShowCustomization(!showCustomization)}
             >
               {showCustomization ? 'Hide Options' : 'Customize Voice'}
             </button>
           </div>
           
-          <p className="text-sm opacity-80 mb-3">
+          <p className="text-sm text-base-content/70 mb-4">
             This voice uses a {getSpeakerForVoice(selectedVoice)?.gender || 'neutral'} speaker 
             with {getSpeakerForVoice(selectedVoice)?.voice_tone || 'professional'} tone and 
             {getSpeakerForVoice(selectedVoice)?.accent || 'neutral'} accent.
           </p>
           
           {showCustomization && (
-            <div className="mt-4 p-4 bg-base-100 rounded-lg">
-              <h5 className="font-medium mb-3">Voice Style</h5>
-              <div className="mb-4">
+            <div className="mt-6 p-5 bg-base-100 rounded-lg border border-base-200">
+              <h5 className="text-md font-medium mb-4 text-base-content">Voice Style</h5>
+              <div className="mb-5">
                 <CustomSelect
                   label="Preset Style"
                   value={selectedStyle}
@@ -192,16 +192,16 @@ const VoiceSpeakerSelector: React.FC<VoiceSpeakerSelectorProps> = ({
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-5">
                 <div>
-                  <h5 className="font-medium mb-2">Basic Properties</h5>
+                  <h5 className="text-md font-medium mb-3 text-base-content">Basic Properties</h5>
                   
-                  <div className="form-control mb-3">
+                  <div className="form-control mb-4">
                     <label className="label">
-                      <span className="label-text">Gender</span>
+                      <span className="label-text font-medium">Gender</span>
                     </label>
                     <select
-                      className="select select-bordered w-full"
+                      className="select select-bordered w-full focus:ring-2 focus:ring-primary"
                       value={customConfig.gender || (getSpeakerForVoice(selectedVoice)?.gender || 'neutral')}
                       onChange={(e) => handleConfigChange('gender', e.target.value)}
                     >
@@ -211,12 +211,12 @@ const VoiceSpeakerSelector: React.FC<VoiceSpeakerSelectorProps> = ({
                     </select>
                   </div>
                   
-                  <div className="form-control mb-3">
+                  <div className="form-control mb-4">
                     <label className="label">
-                      <span className="label-text">Voice Tone</span>
+                      <span className="label-text font-medium">Voice Tone</span>
                     </label>
                     <select
-                      className="select select-bordered w-full"
+                      className="select select-bordered w-full focus:ring-2 focus:ring-primary"
                       value={customConfig.voice_tone || (getSpeakerForVoice(selectedVoice)?.voice_tone || 'professional')}
                       onChange={(e) => handleConfigChange('voice_tone', e.target.value)}
                     >
@@ -230,10 +230,10 @@ const VoiceSpeakerSelector: React.FC<VoiceSpeakerSelectorProps> = ({
                   
                   <div className="form-control">
                     <label className="label">
-                      <span className="label-text">Accent</span>
+                      <span className="label-text font-medium">Accent</span>
                     </label>
                     <select
-                      className="select select-bordered w-full"
+                      className="select select-bordered w-full focus:ring-2 focus:ring-primary"
                       value={customConfig.accent || (getSpeakerForVoice(selectedVoice)?.accent || 'neutral')}
                       onChange={(e) => handleConfigChange('accent', e.target.value)}
                     >
@@ -247,11 +247,11 @@ const VoiceSpeakerSelector: React.FC<VoiceSpeakerSelectorProps> = ({
                 </div>
                 
                 <div>
-                  <h5 className="font-medium mb-2">Speaking Rate</h5>
+                  <h5 className="text-md font-medium mb-2 text-base-content">Speaking Rate</h5>
                   
                   <div className="form-control mb-2">
                     <label className="label">
-                      <span className="label-text">Normal Rate ({customConfig.speaking_rate?.normal || 150})</span>
+                      <span className="label-text font-medium">Normal Rate ({customConfig.speaking_rate?.normal || 150})</span>
                     </label>
                     <input
                       type="range"
@@ -268,7 +268,7 @@ const VoiceSpeakerSelector: React.FC<VoiceSpeakerSelectorProps> = ({
                   
                   <div className="form-control mb-2">
                     <label className="label">
-                      <span className="label-text">Excited Rate ({customConfig.speaking_rate?.excited || 170})</span>
+                      <span className="label-text font-medium">Excited Rate ({customConfig.speaking_rate?.excited || 170})</span>
                     </label>
                     <input
                       type="range"
@@ -285,7 +285,7 @@ const VoiceSpeakerSelector: React.FC<VoiceSpeakerSelectorProps> = ({
                   
                   <div className="form-control">
                     <label className="label">
-                      <span className="label-text">Analytical Rate ({customConfig.speaking_rate?.analytical || 130})</span>
+                      <span className="label-text font-medium">Analytical Rate ({customConfig.speaking_rate?.analytical || 130})</span>
                     </label>
                     <input
                       type="range"

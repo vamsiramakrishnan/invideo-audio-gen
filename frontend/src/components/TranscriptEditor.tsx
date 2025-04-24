@@ -378,8 +378,8 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
   return (
     <div className="card glass shadow-xl border border-base-content/10">
       <div className="card-body p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="card-title text-xl flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4 sm:gap-2">
+          <h2 className="card-title text-2xl flex items-center gap-2 font-bold">
             <span className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg shadow-sm">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -387,7 +387,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
             </span>
             Transcript Editor
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-center sm:justify-end">
             {onGenerateSegmentAudio && turns.some(turn => canGenerateAudio(turn) && !turn.audioUrl) && (
               <button 
                 className={`
@@ -449,14 +449,15 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
           </div>
         )}
 
-        <div className="flex justify-between items-center bg-base-200/50 backdrop-blur-sm rounded-lg p-4 border border-base-content/10 mb-4 shadow-inner">
-          <div className="stat">
-            <div className="stat-title text-base-content/70">Word Count</div>
-            <div className="stat-value text-lg font-semibold">{wordCount ?? '-'}</div>
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-base-200/30 backdrop-blur-sm rounded-xl p-4 border border-base-content/10 mb-6 shadow-inner gap-4 sm:gap-0">
+          <div className="stat px-4 py-2 sm:px-6 sm:py-4">
+            <div className="stat-title text-base-content/70 text-sm">Word Count</div>
+            <div className="stat-value text-xl font-semibold">{wordCount ?? '-'}</div>
           </div>
-          <div className="stat">
-            <div className="stat-title text-base-content/70">Est. Duration</div>
-            <div className="stat-value text-lg font-semibold">
+          <div className="divider sm:divider-horizontal my-0 mx-2"></div>
+          <div className="stat px-4 py-2 sm:px-6 sm:py-4">
+            <div className="stat-title text-base-content/70 text-sm">Est. Duration</div>
+            <div className="stat-value text-xl font-semibold">
               {estimatedDurationMinutes !== null ? `${estimatedDurationMinutes} min` : '-'}
               {targetDurationMinutes !== null && (
                  <span className="text-sm font-normal text-base-content/50"> / {targetDurationMinutes} min target</span>
@@ -465,7 +466,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
           </div>
         </div>
 
-        <div className="space-y-4 mb-6">
+        <div className="space-y-6 mb-6">
           {turns.map((turn, index) => {
             const theme = getSpeakerTheme(turn.speaker);
             
@@ -473,20 +474,20 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
               <div 
                 key={turn.id} 
                 className={`
-                  relative rounded-xl p-0.5 transition-all duration-300
-                  ${index === selectedTurnIndex ? 'scale-[1.01] z-10' : 'hover:scale-[1.005]'}
-                  ${theme.gradient}
+                  relative rounded-2xl transition-all duration-300 group
+                  ${index === selectedTurnIndex ? `p-1 ${theme.gradient} shadow-2xl z-10` : `p-0.5 ${theme.gradient} hover:shadow-xl`}
                 `}
+                onClick={() => setSelectedTurnIndex(index)}
               >
                 <div 
                   className={`
-                    rounded-xl bg-base-100 p-5 relative overflow-hidden
-                    ${index === selectedTurnIndex ? 'ring-2 ring-primary/30 shadow-lg' : ''}
+                    rounded-xl bg-base-100 p-5 relative overflow-hidden border border-transparent
+                    ${index === selectedTurnIndex ? 'border-primary/30' : 'group-hover:border-base-content/10'}
+                    transition-all duration-300
                   `}
-                  onClick={() => setSelectedTurnIndex(index)}
                 >
                   {/* Background gradient effect */}
-                  <div className={`absolute inset-0 opacity-5 ${theme.bgGradient}`}></div>
+                  <div className={`absolute inset-0 opacity-[0.03] ${theme.bgGradient} pointer-events-none`}></div>
                   
                   {/* Audio status indicator */}
                   {turn.audioUrl && (
@@ -501,24 +502,20 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                   )}
                   
                   <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-3">
                       <div className="flex items-center gap-3">
-                        <div className={`
-                          w-10 h-10 rounded-full flex items-center justify-center
-                          ${theme.bgColor} ${theme.textColor} shadow-md
-                        `}>
-                          {theme.icon}
-                        </div>
+                        {theme.icon}
                         <div>
                           <select
                             className={`
-                              select select-sm w-full max-w-xs font-medium
+                              select select-bordered select-sm w-full max-w-xs font-medium text-lg
                               focus:outline-none focus:ring-2 focus:ring-primary/30
-                              ${theme.accentColor} bg-base-200/50
+                              ${theme.accentColor} bg-base-100
                             `}
                             value={turn.speaker}
                             onChange={(e) => handleTurnUpdate(index, { speaker: e.target.value })}
                             onClick={(e) => e.stopPropagation()}
+                            aria-label={`Select speaker for turn ${index + 1}`}
                           >
                             {characters.map((character) => (
                               <option key={character} value={character}>
@@ -529,7 +526,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 flex-wrap justify-end w-full sm:w-auto">
                         {turn.audioUrl && (
                           <div className="tooltip tooltip-left" data-tip={playingAudioIndex === index ? "Pause audio" : "Play audio"}>
                             <button 
@@ -660,7 +657,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                       className={`
                         textarea textarea-bordered w-full min-h-[100px] bg-base-200/50
                         focus:outline-none focus:ring-2 focus:ring-primary/30
-                        ${theme.borderColor}
+                        ${theme.borderColor} text-base
                       `}
                       value={turn.content}
                       onChange={(e) => handleTurnUpdate(index, { content: e.target.value })}
@@ -668,9 +665,9 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                       placeholder={`Enter ${turn.speaker || 'dialogue'}...`}
                     />
                     
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col sm:flex-row justify-between items-center mt-4 pt-4 border-t border-base-content/10 gap-2">
                       <button
-                        className="btn btn-sm btn-ghost gap-1"
+                        className="btn btn-sm btn-ghost gap-1 text-primary"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAddTurn(index);

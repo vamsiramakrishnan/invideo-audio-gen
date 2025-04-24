@@ -202,13 +202,16 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
   }, [turns, speaker]); // Include speaker as dependency for the fallback
 
   return (
-    <div className="space-y-6">
+    <div className="voice-config-manager p-4 md:p-6 space-y-8">
+      {/* --- Main Error Display --- */}
       {error && (
-        <div className="alert alert-error shadow-xl">
-          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{error}</span>
+        <div className="alert alert-error shadow-lg">
+          <div className="flex-1 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{error}</span>
+          </div>
           <button 
             className="btn btn-sm btn-ghost" 
             onClick={() => setError(null)}
@@ -218,66 +221,84 @@ const VoiceConfigurationManager: React.FC<VoiceConfigurationManagerProps> = ({
         </div>
       )}
 
-      {!configCompleted && (
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body">
-            <h2 className="card-title text-2xl flex items-center gap-3">
-              <span className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+      {/* --- Stage 1: Voice Configuration --- */}
+      <div className={`card bg-base-100 shadow-xl border border-base-300/50 ${configCompleted ? 'opacity-60 pointer-events-none' : ''}`}> 
+        <div className="card-body p-6">
+          <h2 className="card-title text-xl font-semibold text-base-content flex items-center gap-3 mb-4">
+            <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${configCompleted ? 'bg-success/20' : 'bg-primary/15'} border ${configCompleted ? 'border-success/30' : 'border-primary/20'}`}>
+              {configCompleted ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-              </span>
-              Configure Voice
-            </h2>
-            
+              ) : (
+                <span className="font-bold text-primary">1</span>
+              )}
+            </span>
+            Configure Character Voices
+          </h2>
+          
+          {!configCompleted ? (
             <SpeakerConfigForm
               characters={characters}
               onSubmit={handleVoiceConfigSubmit}
               isLoading={isGenerating}
             />
-          </div>
+          ) : (
+            <div className="text-center py-4 text-success/80">
+              Voice configurations applied successfully.
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
+      {/* --- Stage 2: Transcript Editing & Audio Generation --- */}
       {configCompleted && (
-        <div className="mt-8">
-          <TranscriptEditor
-            turns={turns}
-            onSave={handleSaveFromEditor}
-            isLoading={isGenerating || isGeneratingSegment}
-            characters={characters}
-            voiceMappings={voiceMappings}
-            onGenerateSegmentAudio={handleGenerateSegmentAudio}
-            wordCount={wordCount}
-            estimatedDurationMinutes={estimatedDurationMinutes}
-            targetDurationMinutes={targetDurationMinutes}
-            onTurnUpdate={handleTurnUpdate}
-            onAddTurn={handleAddTurn}
-            onDeleteTurn={handleDeleteTurn}
-            onMoveTurn={handleMoveTurn}
-            isDirty={isTranscriptDirty}
-          />
-          
-          <div className="mt-6 flex justify-end">
-            <button
-              className="btn btn-primary gap-2"
-              onClick={handleFinalComplete}
-              disabled={isGenerating || isGeneratingSegment}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Complete
-            </button>
+        <div className="card bg-base-100 shadow-xl border border-base-300/50">
+          <div className="card-body p-0"> {/* Remove padding here, let TranscriptEditor handle its own */}
+            <div className="p-6 pb-0"> {/* Add padding for the header */} 
+              <h2 className="card-title text-xl font-semibold text-base-content flex items-center gap-3 mb-0">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/15 border border-primary/20">
+                  <span className="font-bold text-primary">2</span>
+                </span>
+                Edit Transcript & Generate Audio
+              </h2>
+            </div>
+            
+            <TranscriptEditor
+              turns={turns}
+              onTurnUpdate={handleTurnUpdate}
+              onAddTurn={handleAddTurn}
+              onDeleteTurn={handleDeleteTurn}
+              onMoveTurn={handleMoveTurn}
+              onSave={handleSaveFromEditor}
+              isDirty={isTranscriptDirty}
+              isLoading={isGenerating || isGeneratingSegment}
+              characters={characters}
+              voiceMappings={voiceMappings}
+              onGenerateSegmentAudio={handleGenerateSegmentAudio}
+              wordCount={wordCount}
+              estimatedDurationMinutes={estimatedDurationMinutes}
+              targetDurationMinutes={targetDurationMinutes}
+              // onExtendTranscript={handleExtendTranscript} // Add if extension logic is implemented
+              // isExtending={isExtending} // Add if extension logic is implemented
+            />
+
+            {/* --- Final Completion Button --- */} 
+            <div className="p-6 pt-0 flex justify-end border-t border-base-300/50 mt-4">
+              <button 
+                className="btn btn-success btn-md gap-2 shadow-md hover:shadow-lg transition-shadow duration-300"
+                onClick={handleFinalComplete}
+                // TODO: Add better disabled logic (e.g., check if all segments have audio?)
+                disabled={isGenerating || isGeneratingSegment || isTranscriptDirty}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Finalize & Complete
+              </button>
+            </div>
           </div>
         </div>
-      )}
-
-      {(updates.length > 0 || isGenerating || isGeneratingSegment) && (
-        <AudioGenerationProgress
-          updates={updates}
-          isGenerating={isGenerating || isGeneratingSegment}
-        />
       )}
     </div>
   );

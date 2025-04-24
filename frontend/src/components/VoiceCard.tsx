@@ -47,57 +47,46 @@ const VoiceCard: React.FC<VoiceCardProps> = ({
   return (
     <div
       className={`
-        card backdrop-blur-sm transition-all duration-300 group
+        card bg-base-100 transition-all duration-300 ease-in-out group relative overflow-hidden rounded-lg
+        border 
         ${isSelected 
-          ? 'border-2 border-primary/40 shadow-xl bg-gradient-to-br from-primary/5 to-primary/10 scale-[1.02] ring-2 ring-primary/20 ring-offset-2 ring-offset-base-100' 
-          : 'border border-base-content/10 hover:border-primary/20 bg-gradient-to-br from-base-200/40 to-base-300/40 hover:from-base-200/60 hover:to-base-300/60 hover:scale-[1.01] hover:shadow-lg'
+          ? 'border-primary shadow-lg scale-[1.03] ring-2 ring-primary/30 ring-offset-2 ring-offset-base-100' 
+          : 'border-base-300 hover:border-primary/40 hover:shadow-md hover:scale-[1.01]'
         }
-        cursor-pointer relative overflow-hidden rounded-2xl
+        cursor-pointer
       `}
       onClick={onSelect}
     >
-      {/* Selection indicator - subtle glow effect */}
-      {isSelected && (
-        <div className="absolute inset-0 bg-gradient-radial from-primary/10 to-transparent pointer-events-none" />
-      )}
-      
-      {/* Hover effect - more subtle and elegant */}
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-1000 pointer-events-none" />
+      {/* Optional: Add a subtle background pattern or gradient on hover/select */}
+      {/* {isSelected && <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-50 pointer-events-none"></div>} */}
 
-      <div className="card-body p-5">
-        <div className="flex items-start gap-4">
+      <div className="card-body p-4 md:p-5">
+        <div className="flex items-center gap-4">
+          {/* --- Refined Icon Container --- */}
           <div 
             className={`
-              p-4 rounded-2xl text-2xl relative overflow-hidden
-              transition-all duration-500 transform
-              ${isSelected ? 'scale-110 rotate-3' : 'group-hover:scale-105 group-hover:rotate-1'}
-              backdrop-blur-sm shadow-lg
+              flex-shrink-0 p-3 rounded-lg text-2xl shadow-sm
+              transition-all duration-300 transform
+              ${isSelected ? 'scale-110' : 'group-hover:scale-105'}
             `}
             style={{ 
-              backgroundColor: `${metadata.color}30`,
+              backgroundColor: `${metadata.color}20`, // Slightly less intense background
               color: metadata.color,
-              boxShadow: `0 10px 30px -10px ${metadata.color}50`
+              // border: `1px solid ${metadata.color}40` // Optional border
             }}
           >
-            {/* Icon background effect - more refined */}
-            <div 
-              className="absolute inset-0 opacity-70 mix-blend-overlay"
-              style={{
-                backgroundImage: `radial-gradient(circle at center, ${metadata.color}50 0%, transparent 70%)`
-              }}
-            />
-            <div className="relative z-10">{metadata.icon}</div>
+            <div className="relative z-10 w-6 h-6 flex items-center justify-center">{metadata.icon}</div>
           </div>
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <h3 className={`
-                font-bold text-lg mb-1 truncate
+                font-semibold text-base md:text-lg mb-0.5 truncate 
                 ${isSelected 
-                  ? 'text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary' 
-                  : 'text-base-content/90 group-hover:text-primary/80'
+                  ? 'text-primary' 
+                  : 'text-base-content group-hover:text-primary/90'
                 }
-                transition-colors duration-300
+                transition-colors duration-200
               `}>
                 {name}
               </h3>
@@ -109,19 +98,26 @@ const VoiceCard: React.FC<VoiceCardProps> = ({
                 </div>
               )}
             </div>
-            {!isCompact && (
-              <p className="text-sm text-base-content/70 leading-relaxed line-clamp-2 group-hover:text-base-content/80 transition-colors duration-300">
+            {!isCompact && metadata.description && (
+              <p className="text-sm text-base-content/70 leading-normal line-clamp-2 mt-1 group-hover:text-base-content/80 transition-colors duration-200">
                 {metadata.description}
               </p>
             )}
           </div>
         </div>
 
-        {/* Voice style selector - Only show when selected */}
-        {isSelected && onStyleChange && (
-          <div className="mt-5 pt-4 border-t border-base-content/10">
-            <div className="flex items-center gap-2" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-              <div className="flex-1">
+        {/* --- Style Selector & Tags Section (Conditional) --- */}
+        {(isSelected || (!isCompact && metadata.tags)) && (
+          <div 
+            className={`
+              mt-4 pt-4 border-t border-base-300/70 
+              transition-all duration-300 ease-in-out overflow-hidden
+              ${isSelected ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'} 
+            `}
+          >
+            {/* Voice style selector - Only show when selected */}
+            {isSelected && onStyleChange && (
+              <div className="mb-3" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                 <CustomSelect
                   label="Voice Style"
                   value={selectedStyle || 'neutral_professional'}
@@ -132,56 +128,38 @@ const VoiceCard: React.FC<VoiceCardProps> = ({
                       word.charAt(0).toUpperCase() + word.slice(1)
                     ).join(' ')
                   }))}
+                  // Add some styling if CustomSelect accepts className or specific props
+                  // className="select-sm bg-base-200/50 border-base-300" 
                 />
+                {/* Optional: Show style description inline */}
+                {selectedStyle && VOICE_STYLE_PRESETS[selectedStyle] && (
+                  <p className="text-xs text-base-content/60 mt-1.5 px-1 leading-tight">
+                    {getStyleDescription(selectedStyle)}
+                  </p>
+                )}
               </div>
-              {isCompact && (
-                <button
-                  className="btn btn-circle btn-ghost btn-sm hover:bg-primary/10 hover:text-primary transition-all duration-300"
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    setIsEditingStyle(!isEditingStyle);
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Voice characteristics preview */}
-        {(!isCompact || (isCompact && isEditingStyle)) && metadata.tags && (
-          <div className="mt-5 pt-4 border-t border-base-content/10">
-            <div className="flex flex-wrap gap-2">
-              {metadata.tags.map((tag, index) => (
-                <span 
-                  key={index}
-                  className={`
-                    px-3 py-1 rounded-full text-xs font-medium
-                    transition-all duration-300
-                    ${isSelected 
-                      ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-sm shadow-primary/10'
-                      : 'bg-base-content/10 text-base-content/70 group-hover:bg-primary/10 group-hover:text-primary/80'
-                    }
-                  `}
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Show style description when selected */}
-        {isSelected && selectedStyle && VOICE_STYLE_PRESETS[selectedStyle] && (
-          <div className="mt-5 pt-4 border-t border-base-content/10">
-            <div className="bg-base-100/50 p-3 rounded-xl shadow-inner">
-              <p className="text-xs text-base-content/70 leading-relaxed">
-                <span className="font-medium text-primary">Style:</span> {getStyleDescription(selectedStyle)}
-              </p>
-            </div>
+            {/* Voice characteristics tags */}
+            {metadata.tags && (
+              <div className="flex flex-wrap gap-1.5">
+                {metadata.tags.map((tag, index) => (
+                  <span 
+                    key={index}
+                    className={`
+                      px-2.5 py-0.5 rounded-full text-xs font-medium
+                      transition-all duration-200
+                      ${isSelected 
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-base-200 text-base-content/70 group-hover:bg-primary/10 group-hover:text-primary/80'
+                      }
+                    `}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
