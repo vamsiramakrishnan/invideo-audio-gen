@@ -3,7 +3,7 @@
 A modern web application for generating high-quality audio content with customizable voice configurations, built with FastAPI and React. The system leverages Google's Gemini AI platform for advanced voice synthesis and natural language processing.
 
 # How to Use 
-<iframe src="https://scribehow.com/embed/Creating_a_Podcast_Transcript_with_Customization_Options__JmHZeHuIQ2aWOIRfdz0fZw" width="100%" height="640" allowfullscreen frameborder="0"></iframe>
+[<img src="https://img.shields.io/badge/View%20Interactive%20Tutorial-Scribe-4CAF50?style=for-the-badge&logo=safari&logoColor=white" />](https://scribehow.com/shared/Creating_a_Podcast_Transcript_with_Customization_Options__JmHZeHuIQ2aWOIRfdz0fZw)
 
 Follow our step-by-step tutorial to learn how to create a podcast transcript with customized voice options. The tutorial walks through the entire process from setup to final audio generation.
 
