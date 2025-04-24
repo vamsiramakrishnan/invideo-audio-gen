@@ -42,4 +42,5 @@ export interface SpeakerConfig {
   speech_patterns: SpeechPatterns;
   custom_persona?: string;
   custom_background?: string;
+  voice?: string;
 } 

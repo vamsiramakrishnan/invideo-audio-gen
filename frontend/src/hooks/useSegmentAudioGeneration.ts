@@ -24,20 +24,33 @@ export function useSegmentAudioGeneration(apiBaseUrl: string = ''): UseSegmentAu
         throw new Error(`No voice configuration found for speaker: ${speaker}`);
       }
       
+      // Log the payload for debugging
+      const payload = {
+        speaker,
+        text,
+        voiceConfig: voiceMappings[speaker]
+      };
+      console.log('Segment audio payload:', JSON.stringify(payload, null, 2));
+      
       const response = await fetch(`${apiBaseUrl}/api/generate-segment-audio`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          speaker,
-          text,
-          voiceConfig: voiceMappings[speaker]
-        })
+        body: JSON.stringify(payload)
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to generate audio: ${response.statusText}`);
+        // Get more details if available in error response
+        let errorDetails = response.statusText;
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.detail || errorData.message || errorDetails;
+          console.error('API error details:', errorData);
+        } catch (e) {
+          // If can't parse JSON, use status text
+        }
+        throw new Error(`Failed to generate audio: ${errorDetails}`);
       }
       
       // For SSE responses, we need to handle the stream

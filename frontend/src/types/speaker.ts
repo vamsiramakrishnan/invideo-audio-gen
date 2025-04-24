@@ -2,8 +2,13 @@ import { VoiceName } from './voice';
 import { SpeakerConfig } from './base';
 import { VoiceConfig } from './voice';
 
-// Speaker-specific types
-export type SpeakerVoiceMapping = VoiceConfig;
+/**
+ * Represents a mapping between a speaker and their voice configuration
+ */
+export interface SpeakerVoiceMapping {
+  voice: VoiceName | '';
+  config: SpeakerConfig | null;
+}
 
 // Form-specific types
 export interface SpeakerFormState {

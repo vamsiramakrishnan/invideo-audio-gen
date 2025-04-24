@@ -5,6 +5,8 @@ import SpeakerConfigForm from './components/SpeakerConfigForm';
 import TranscriptEditor from './components/TranscriptEditor';
 import ProgressSteps from './components/ProgressSteps';
 import { SpeakerVoiceMapping } from './types/speaker';
+import { VoiceConfig, VoiceName } from './types/voice';
+import { SpeakerConfig } from './types/base';
 import { usePodcast } from './contexts/PodcastContext';
 import { useAudio } from './contexts/AudioContext';
 import { AudioProvider } from './contexts/AudioContext';
@@ -328,10 +330,40 @@ const AppContent = () => {
       setIsLoading(true);
       setError(null);
       
+      // First check if we have valid voice mappings
+      if (Object.keys(voiceMappings).length === 0) {
+        throw new Error("No voice mappings configured. Please set up voice configurations first.");
+      }
+      
+      // Convert SpeakerVoiceMapping to VoiceConfig
+      const validVoiceMappings: Record<string, VoiceConfig> = {};
+      let invalidMappings = 0;
+      
+      // Filter out invalid mappings and convert the types
+      Object.entries(voiceMappings).forEach(([speaker, mapping]) => {
+        // Only include mappings with valid voice name and config
+        if (mapping.voice && mapping.config) {
+          validVoiceMappings[speaker] = {
+            voice: mapping.voice as VoiceName,
+            config: mapping.config as SpeakerConfig
+          };
+        } else {
+          invalidMappings++;
+        }
+      });
+      
+      if (Object.keys(validVoiceMappings).length === 0) {
+        throw new Error(`No valid voice mappings found. ${invalidMappings} invalid mappings detected.`);
+      }
+      
+      if (!transcriptStringFromContext || transcriptStringFromContext.trim() === '') {
+        throw new Error("Transcript is empty. Please create a transcript first.");
+      }
+      
       // Use the transcript string from context (which should be synced on save)
       await generateAudio({
         transcript: transcriptStringFromContext, // Use string from context
-        voiceMappings
+        voiceMappings: validVoiceMappings // Use converted voice mappings
       });
       
       setStep(5); // Move to final step with audio player
@@ -353,17 +385,103 @@ const AppContent = () => {
     if (!generateSegmentAudio) {
       throw new Error("Segment audio generation function not available from context.");
     }
+    
+    if (!text || text.trim() === '') {
+      throw new Error("Text content is empty. Please add text before generating audio.");
+    }
+    
+    if (!speaker || speaker.trim() === '') {
+      throw new Error("Speaker is not specified. Please select a speaker.");
+    }
+    
     // Error handling might be managed within useAudio, but double-check
     setError(null);
     try {
+      // Check if we have a mapping for this speaker
+      if (!voiceMappings[speaker]) {
+        throw new Error(`No voice mapping found for speaker: ${speaker}`);
+      }
+      
+      // Validate the voice mapping has both voice and config
+      if (!voiceMappings[speaker].voice || !voiceMappings[speaker].config) {
+        throw new Error(`Incomplete voice configuration for speaker: ${speaker}`);
+      }
+      
+      // Create a complete speaker config with defaults for all required fields
+      const defaultSpeakerConfig = {
+        name: `Speaker ${speaker}`,
+        age: 35,
+        gender: 'neutral' as const,
+        persona: 'Podcast Speaker',
+        background: 'Experienced in the topic',
+        voice_tone: 'professional' as const,
+        accent: 'neutral' as const,
+        speaking_rate: {
+          normal: 150,
+          excited: 170,
+          analytical: 130
+        },
+        voice_characteristics: {
+          pitch_range: 'medium',
+          resonance: 'mixed',
+          breathiness: 'low',
+          vocal_energy: 'moderate',
+          pause_pattern: 'natural',
+          emphasis_pattern: 'balanced',
+          emotional_range: 'neutral',
+          breathing_pattern: 'relaxed'
+        },
+        speech_patterns: {
+          phrasing: 'natural',
+          rhythm: 'regular',
+          articulation: 'clear',
+          modulation: 'subtle'
+        }
+      };
+
+      // Merge the default config with the existing one and ensure voice is set
+      const speakerMapping = {
+        voice: voiceMappings[speaker].voice,
+        config: {
+          ...defaultSpeakerConfig,
+          ...(voiceMappings[speaker].config || {}),
+          voice: voiceMappings[speaker].voice
+        }
+      };
+      
+      // Normalize gender to lowercase
+      if (speakerMapping.config.gender) {
+        const gender = speakerMapping.config.gender.toString().toLowerCase();
+        // Ensure it's one of the allowed values
+        speakerMapping.config.gender = 
+          (['male', 'female', 'neutral'].includes(gender) ? gender : 'neutral') as 'male' | 'female' | 'neutral';
+      }
+      
+      // Normalize accent to match allowed values
+      if (speakerMapping.config.accent) {
+        let accent = speakerMapping.config.accent.toString().toLowerCase();
+        // Check for keywords in the accent description
+        const validAccents = ['neutral', 'british', 'american', 'australian', 'indian'] as const;
+        // Find if any valid accent appears in the string, otherwise default to neutral
+        const matchedAccent = validAccents.find(valid => accent.includes(valid));
+        speakerMapping.config.accent = (matchedAccent || 'neutral') as 'neutral' | 'british' | 'american' | 'australian' | 'indian';
+      }
+      
+      // Pass only this speaker mapping to the function
+      const speakerMappings = {
+        [speaker]: speakerMapping
+      };
+
       // Call the context function - it returns the absolute URL when done
-      const absoluteAudioUrl = await generateSegmentAudio(speaker, text, voiceMappings);
+      const absoluteAudioUrl = await generateSegmentAudio(speaker, text, speakerMappings);
 
       // Update the specific turn in App state with the received URL
       handleTurnUpdate(index, { audioUrl: absoluteAudioUrl });
 
     } catch(err) {
-      setError(err instanceof Error ? err.message : "Failed to initiate segment audio generation");
+      const errorMsg = err instanceof Error ? err.message : "Failed to initiate segment audio generation";
+      console.error('Segment audio generation error:', errorMsg);
+      setError(errorMsg);
       throw err; // Re-throw for TranscriptEditor's internal handling
     }
   };

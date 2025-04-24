@@ -96,7 +96,32 @@ class WebSocketService {
     }
 
     public generateAudio(audioData: any) {
-        this.send('generate_audio', audioData);
+        try {
+            // Validate that required fields exist
+            if (!audioData || !audioData.transcript || !audioData.voiceMappings) {
+                throw new Error("Missing required fields for audio generation");
+            }
+            
+            // Ensure voiceMappings is not empty
+            if (Object.keys(audioData.voiceMappings).length === 0) {
+                throw new Error("No voice mappings provided");
+            }
+            
+            // Check that each voice mapping has required properties
+            Object.entries(audioData.voiceMappings).forEach(([speaker, mapping]: [string, any]) => {
+                if (!mapping.voice || !mapping.config) {
+                    throw new Error(`Invalid voice mapping for speaker: ${speaker}`);
+                }
+            });
+            
+            this.send('generate_audio', audioData);
+        } catch (error) {
+            console.error("Error preparing audio generation:", error);
+            // Notify any error handlers
+            const handlers = this.messageHandlers.get('error') || [];
+            handlers.forEach(handler => handler(error instanceof Error ? error.message : String(error)));
+            throw error;
+        }
     }
 }
 
