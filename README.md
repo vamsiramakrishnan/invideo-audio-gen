@@ -2,6 +2,11 @@
 
 A modern web application for generating high-quality audio content with customizable voice configurations, built with FastAPI and React. The system leverages Google's Gemini AI platform for advanced voice synthesis and natural language processing.
 
+# How to Use 
+[<img src="https://img.shields.io/badge/View%20Interactive%20Tutorial-Scribe-4CAF50?style=for-the-badge&logo=safari&logoColor=white" />](https://scribehow.com/shared/Creating_a_Podcast_Transcript_with_Customization_Options__JmHZeHuIQ2aWOIRfdz0fZw)
+
+Follow our step-by-step tutorial to learn how to create a podcast transcript with customized voice options. The tutorial walks through the entire process from setup to final audio generation.
+
 ## Features
 
 - Real-time audio generation with progress tracking via Server-Sent Events (SSE)
@@ -22,14 +27,14 @@ The system offers 8 distinct AI voices, each optimized for different content typ
 
 | Voice    | Description                                        | Best For                |
 |----------|----------------------------------------------------|------------------------|
-| Puck   | Playful and energetic voice                       | Dynamic content        |
-| Charon | Deep and mysterious voice                         | Serious topics         |
-| Aoede  | Melodic and musical voice                         | Engaging storytelling  |
-| Zephyr | Swift and airy voice                              | Energetic content      |
-| Leda   | Graceful and elegant voice                        | Refined delivery       |
-| Fenrir | Strong and powerful voice                         | Authoritative content  |
-| Orus   | Bright and clear voice                            | Educational content    |
-| Kore   | Soft and gentle voice                             | Calming content        |
+| Puck     | Playful and energetic voice                       | Dynamic content        |
+| Charon   | Deep and mysterious voice                         | Serious topics         |
+| Aoede    | Melodic and musical voice                         | Engaging storytelling  |
+| Zephyr   | Swift and airy voice                              | Energetic content      |
+| Leda     | Graceful and elegant voice                        | Refined delivery       |
+| Fenrir   | Strong and powerful voice                         | Authoritative content  |
+| Orus     | Bright and clear voice                            | Educational content    |
+| Kore     | Soft and gentle voice                             | Calming content        |
 
 ## Project Structure
 
@@ -116,6 +121,81 @@ The backend API provides the following endpoints:
 - `POST /api/generate-audio`: Generate audio from transcript
   - Request body: `PodcastRequest` containing transcript and voice mappings
   - Returns: Server-Sent Events with generation progress
+
+## Code Examples
+
+### Backend API Endpoint Example
+
+```python
+@router.post("/generate-audio", response_model=GenerationResponse)
+async def generate_audio(request: PodcastRequest):
+    """
+    Generate audio from transcript with voice configuration.
+    Returns a unique job ID to track generation progress.
+    """
+    # Create unique generation job ID
+    job_id = str(uuid.uuid4())
+    
+    # Process request asynchronously
+    background_tasks.add_task(
+        audio_service.generate_podcast_audio,
+        job_id=job_id,
+        transcript=request.transcript,
+        voice_mapping=request.voice_mapping
+    )
+    
+    return GenerationResponse(
+        job_id=job_id,
+        status="processing",
+        message="Audio generation started"
+    )
+```
+
+### Frontend API Integration Example
+
+```typescript
+const generateAudio = async (transcript: string, voiceMapping: VoiceMapping): Promise<string> => {
+  try {
+    const response = await fetch('/api/generate-audio', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transcript,
+        voice_mapping: voiceMapping,
+      }),
+    });
+    
+    const data = await response.json();
+    return data.job_id;
+  } catch (error) {
+    console.error('Error generating audio:', error);
+    throw error;
+  }
+};
+```
+
+### Voice Configuration Example
+
+```javascript
+const voiceConfig = {
+  "Speaker1": {
+    "voice": "Puck",
+    "speaking_rate": {
+      "normal": 150,
+      "excited": 165,
+      "analytical": 130
+    },
+    "voice_characteristics": {
+      "pitch_range": "wide",
+      "resonance": "mixed",
+      "breathiness": "low",
+      "vocal_energy": "high"
+    }
+  }
+};
+```
 
 ## Contributing
 
